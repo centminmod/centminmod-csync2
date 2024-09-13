@@ -36,6 +36,7 @@ dnf install --allowerasing -y \
   gnupg2 \
   openssl-devel \
   zlib-devel \
+  sqlite \
   sqlite-devel \
   xz \
   xz-devel \
