@@ -10,7 +10,7 @@ CSYNC2_LIBDIR=/usr
 if grep -q "release 8" /etc/redhat-release; then
     DISTTAG='el8'
     POSTGRESQL_VERSION=15
-    CRB_REPO="crb"
+    CRB_REPO="powertools"
 elif grep -q "release 9" /etc/redhat-release; then
     DISTTAG='el9'
     POSTGRESQL_VERSION=15

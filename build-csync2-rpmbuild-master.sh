@@ -8,11 +8,11 @@ CSYNC2_VER=2.1
 # Determine DISTTAG based on OS release
 if grep -q "release 8" /etc/redhat-release; then
     DISTTAG='el8'
-    POSTGRESQL_VERSION=15  # or choose the required version
-    CRB_REPO="crb"
+    POSTGRESQL_VERSION=15
+    CRB_REPO="powertools"
 elif grep -q "release 9" /etc/redhat-release; then
     DISTTAG='el9'
-    POSTGRESQL_VERSION=15  # or choose the required version
+    POSTGRESQL_VERSION=15
     CRB_REPO="crb"
 fi
 
