@@ -77,7 +77,11 @@ sed -i \"/doc\\/csync2_paper\\.tex/d\" Makefile.am\n\
 sed -i \"/MANPDF/d\" Makefile.am\n\
 sed -i \"/MANAUX/d\" Makefile.am\n\
 sed -i \"/^if HAVE_PDFLATEX/,/^endif/d\" Makefile.am\n\
-autoreconf --install' ~/rpmbuild/SPECS/csync2.spec
+autoreconf --install\n\
+# Dump Makefile for inspection\n\
+echo === Begin Makefile ===\n\
+cat ~/rpmbuild/BUILD/csync2-csync2-${CSYNC2_VER}/Makefile\n\
+echo === End Makefile ===' ~/rpmbuild/SPECS/csync2.spec
 
 # Modify the Makefile in the %prep section of the spec file
 sed -i '/csync2_paper\.pdf/d' ~/rpmbuild/SPECS/csync2.spec
