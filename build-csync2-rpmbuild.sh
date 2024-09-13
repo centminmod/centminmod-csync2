@@ -76,7 +76,11 @@ sed -i '/^%prep/a \
 sed -i \"/doc\\/csync2_paper\\.tex/d\" Makefile.am\n\
 sed -i \"/MANPDF/d\" Makefile.am\n\
 sed -i \"/MANAUX/d\" Makefile.am\n\
-sed -i \"/^if HAVE_PDFLATEX/,/^endif/d\" Makefile.am' ~/rpmbuild/SPECS/csync2.spec
+sed -i \"/^if HAVE_PDFLATEX/,/^endif/d\" Makefile.am\n\
+autoreconf --install' ~/rpmbuild/SPECS/csync2.spec
+
+# Regenerate the Makefile after modifying Makefile.am
+autoreconf --install
 
 echo
 cat ~/rpmbuild/SPECS/csync2.spec
