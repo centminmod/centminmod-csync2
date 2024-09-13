@@ -75,8 +75,8 @@ sed -i 's/^Source0:.*/Source0: %{name}-%{version}.tar.gz/' ~/rpmbuild/SPECS/csyn
 
 cp "../csync2-${CSYNC2_VER}.tar.gz" ~/rpmbuild/SOURCES/
 
-# Modify the %setup line in the spec file to match the extracted directory
-sed -i "s/^%setup.*/%setup -n csync2-csync2-${CSYNC2_VER}/" ~/rpmbuild/SPECS/csync2.spec
+# Modify the %setup line to match the correct directory name (csync2-master)
+sed -i 's/^%setup.*/%setup -n csync2-master/' ~/rpmbuild/SPECS/csync2.spec
 sed -i '/^export CFLAGS=/i export RPM_OPT_FLAGS="$RPM_OPT_FLAGS -Wno-format-truncation -Wno-misleading-indentation -Wno-mismatched-dealloc"' ~/rpmbuild/SPECS/csync2.spec
 
 # Use sed to replace incorrect package names in the spec file
