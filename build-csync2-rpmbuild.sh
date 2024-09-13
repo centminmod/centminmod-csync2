@@ -100,6 +100,12 @@ echo
 # Build the RPM using rpmbuild
 rpmbuild -ba ~/rpmbuild/SPECS/csync2.spec --define "dist .${DISTTAG}"
 
+echo
+ls -lah ~/rpmbuild/RPMS/x86_64/
+echo
+ls -lah ~/rpmbuild/SRPMS/
+echo
+
 # Move the built RPMs and SRPMs to the workspace for GitHub Actions
 mkdir -p /workspace/rpms
 cp ~/rpmbuild/RPMS/x86_64/*.rpm /workspace/rpms/
