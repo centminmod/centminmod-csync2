@@ -70,8 +70,8 @@ sed -i "s/^%setup.*/%setup -n csync2-csync2-${CSYNC2_VER}/" ~/rpmbuild/SPECS/csy
 sed -i '/^export CFLAGS=/i export RPM_OPT_FLAGS="$RPM_OPT_FLAGS -Wno-format-truncation -Wno-misleading-indentation -Wno-mismatched-dealloc"' ~/rpmbuild/SPECS/csync2.spec
 
 # Modify the %prep section of the spec file to add sed commands for csync2_paper references
-sed -i '/^%prep/a \
-%setup -q -n csync2-csync2-'${CSYNC2_VER}'\n\
+sed -i "/^%prep/a \
+%setup -q -n csync2-csync2-${CSYNC2_VER}\n\
 # Apply sed to remove csync2_paper references\n\
 sed -i \"/doc\\/csync2_paper\\.tex/d\" Makefile.am\n\
 sed -i \"/MANPDF/d\" Makefile.am\n\
@@ -81,7 +81,7 @@ autoreconf --install\n\
 # Dump Makefile for inspection\n\
 echo === Begin Makefile ===\n\
 cat ~/rpmbuild/BUILD/csync2-csync2-${CSYNC2_VER}/Makefile\n\
-echo === End Makefile ===' ~/rpmbuild/SPECS/csync2.spec
+echo === End Makefile ===" ~/rpmbuild/SPECS/csync2.spec
 
 # Modify the Makefile in the %prep section of the spec file
 sed -i '/csync2_paper\.pdf/d' ~/rpmbuild/SPECS/csync2.spec
