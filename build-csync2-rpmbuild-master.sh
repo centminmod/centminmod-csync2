@@ -63,6 +63,16 @@ cd "csync2-${CSYNC2_VER}"
 # Prepare for building the RPM
 mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
 cp csync2.spec ~/rpmbuild/SPECS/
+
+# Modify the Version field to 2.1
+sed -i 's/^Version:.*/Version: 2.1/' ~/rpmbuild/SPECS/csync2.spec
+
+# Modify the Release field (optional)
+sed -i 's/^Release:.*/Release: 1%{?dist}/' ~/rpmbuild/SPECS/csync2.spec
+
+# Modify the Source0 line to point to the correct tar.gz
+sed -i 's/^Source0:.*/Source0: %{name}-%{version}.tar.gz/' ~/rpmbuild/SPECS/csync2.spec
+
 cp "../csync2-${CSYNC2_VER}.tar.gz" ~/rpmbuild/SOURCES/
 
 # Modify the %setup line in the spec file to match the extracted directory
