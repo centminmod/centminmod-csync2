@@ -26,6 +26,7 @@ jobs:
 
     - name: Set up AlmaLinux container and build Csync2 using rpmbuild
       run: |
+        mkdir -p ${{ github.workspace }}/rpms
         docker pull ${{ matrix.os }}
         docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace ${{ matrix.os }} /bin/bash -c "
           if [[ ${{ matrix.os }} == 'almalinux:8' ]]; then
@@ -38,13 +39,17 @@ jobs:
           chmod +x /tmp/build-csync2-rpmbuild-master.sh &&
           # Run build script
           /tmp/build-csync2-rpmbuild-master.sh $DISTTAG &&
-          ls -lah /root/rpmbuild/RPMS/x86_64/ &&
-          ls -lah /root/rpmbuild/SRPMS/ &&
-          mkdir -p /workspace/rpms/ &&
+          # Copy the built RPMs to the mounted /workspace/rpms directory on the host
+          mkdir -p /workspace/rpms &&
           cp /root/rpmbuild/RPMS/x86_64/*.rpm /workspace/rpms/ &&
           cp /root/rpmbuild/SRPMS/*.rpm /workspace/rpms/ &&
-          rpm -qpl /root/rpmbuild/RPMS/x86_64/csync2-2.*.x86_64.rpm || true
+          ls -lah /workspace/rpms/  # Add debugging to list the copied files
         "
+
+    - name: Debugging: Show contents of /workspace/rpms
+      run: |
+        echo "Checking for RPMs in /workspace/rpms on host..."
+        ls -lah ${{ github.workspace }}/rpms/
 
     - name: Set custom artifact name
       run: |
@@ -58,7 +63,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: ${{ env.ARTIFACT_NAME }}
-        path: /workspace/rpms/*.rpm
+        path: ${{ github.workspace }}/rpms/*.rpm
         if-no-files-found: warn
         compression-level: 0
         overwrite: false
