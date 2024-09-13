@@ -74,6 +74,8 @@ sed -i '/^%prep/a \
 %setup -q -n csync2-csync2-'${CSYNC2_VER}'\n\
 # Apply sed to remove csync2_paper references\n\
 sed -i \"/doc\\/csync2_paper\\.tex/d\" Makefile.am\n\
+sed -i \"/MANPDF/d\" Makefile.am\n\
+sed -i \"/MANAUX/d\" Makefile.am\n\
 sed -i \"/^if HAVE_PDFLATEX/,/^endif/d\" Makefile.am' ~/rpmbuild/SPECS/csync2.spec
 
 echo
