@@ -26,6 +26,8 @@ dnf install -y postgresql-server-devel
 
 # Install dependencies
 dnf install --allowerasing -y \
+  mariadb-devel \
+  libpq-devel \
   wget \
   rpm-build \
   gcc \
@@ -50,7 +52,6 @@ dnf install --allowerasing -y \
   libgcrypt-devel \
   gnutls-devel \
   librsync-devel \
-  mysql-devel \
   texlive \
   texlive-latex
 
