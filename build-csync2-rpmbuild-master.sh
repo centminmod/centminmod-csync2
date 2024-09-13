@@ -93,6 +93,9 @@ sed -i '/README/d' ~/rpmbuild/SPECS/csync2.spec
 sed -i '/AUTHORS/d' ~/rpmbuild/SPECS/csync2.spec
 sed -i '/xinetd.d\/csync2/d' ~/rpmbuild/SPECS/csync2.spec
 
+# Add csync2-quickstart.adoc to %files section
+sed -i '/%doc %{_docdir}\/csync2\/csync2.adoc/a %doc %{_docdir}/csync2/csync2-quickstart.adoc' ~/rpmbuild/SPECS/csync2.spec
+
 # Build the RPM using rpmbuild
 rpmbuild -ba ~/rpmbuild/SPECS/csync2.spec --define "dist .${DISTTAG}"
 
