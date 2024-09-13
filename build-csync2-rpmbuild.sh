@@ -95,6 +95,9 @@ sed -i 's/sqlite3-devel/sqlite-devel/g' ~/rpmbuild/SPECS/csync2.spec
 sed -i 's/sqlite3/sqlite/g' ~/rpmbuild/SPECS/csync2.spec
 sed -i '/Requires:.*sqlite/a Requires:       sqlite-libs' ~/rpmbuild/SPECS/csync2.spec
 
+# Modify the %configure line to disable SQLite 2 and enable SQLite 3
+sed -i 's/%configure .*/%configure --enable-mysql --enable-postgres --disable-sqlite --enable-sqlite3/' ~/rpmbuild/SPECS/csync2.spec
+
 # Regenerate the Makefile after modifying Makefile.am
 autoreconf --install
 
