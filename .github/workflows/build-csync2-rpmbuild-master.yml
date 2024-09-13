@@ -29,17 +29,25 @@ jobs:
         mkdir -p ${{ github.workspace }}/rpms
         docker pull ${{ matrix.os }}
         docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace ${{ matrix.os }} /bin/bash -c "
-          if [[ ${{ matrix.os }} == 'almalinux:8' ]]; then
-            DISTTAG='el8';
+          if [[ '${{ matrix.os }}' == 'almalinux:8' ]]; then
+            DISTTAG='el8'
           else
-            DISTTAG='el9';
-          fi &&
-          cp /workspace/build-csync2-rpmbuild-master.sh /tmp &&
-          chmod +x /tmp/build-csync2-rpmbuild-master.sh &&
-          /tmp/build-csync2-rpmbuild-master.sh $DISTTAG &&
-          mkdir -p /workspace/rpms &&
-          cp /root/rpmbuild/RPMS/x86_64/*.rpm /workspace/rpms/ &&
-          cp /root/rpmbuild/SRPMS/*.rpm /workspace/rpms/ &&
+            DISTTAG='el9'
+          fi
+          
+          # Copy build script into the container
+          cp /workspace/build-csync2-rpmbuild-master.sh /tmp
+          chmod +x /tmp/build-csync2-rpmbuild-master.sh
+
+          # Run build script
+          /tmp/build-csync2-rpmbuild-master.sh $DISTTAG
+
+          # Copy the built RPMs to the mounted /workspace/rpms directory on the host
+          mkdir -p /workspace/rpms
+          cp /root/rpmbuild/RPMS/x86_64/*.rpm /workspace/rpms/
+          cp /root/rpmbuild/SRPMS/*.rpm /workspace/rpms/
+          
+          # List the RPMs in the /workspace/rpms directory
           ls -lah /workspace/rpms/
         "
 
