@@ -90,6 +90,7 @@ sed -i '/csync2_paper\.pdf/d' ~/rpmbuild/SPECS/csync2.spec
 # Use sed to replace incorrect package names in the spec file
 sed -i 's/libgnutls-devel/gnutls-devel/g' ~/rpmbuild/SPECS/csync2.spec
 sed -i 's/sqlite3-devel/sqlite-devel/g' ~/rpmbuild/SPECS/csync2.spec
+sed -i 's/sqlite3/sqlite/g' ~/rpmbuild/SPECS/csync2.spec
 
 # Regenerate the Makefile after modifying Makefile.am
 autoreconf --install

@@ -83,6 +83,7 @@ sed -i '/^export CFLAGS=/i export RPM_OPT_FLAGS="$RPM_OPT_FLAGS -Wno-format-trun
 # Use sed to replace incorrect package names in the spec file
 sed -i 's/libgnutls-devel/gnutls-devel/g' ~/rpmbuild/SPECS/csync2.spec
 sed -i 's/sqlite3-devel/sqlite-devel/g' ~/rpmbuild/SPECS/csync2.spec
+sed -i 's/sqlite3/sqlite/g' ~/rpmbuild/SPECS/csync2.spec
 
 # Modify the spec file to ensure the documentation directory exists
 sed -i '/%install/a \
