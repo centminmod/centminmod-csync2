@@ -89,10 +89,6 @@ sed -i 's/sqlite3-devel/sqlite-devel/g' ~/rpmbuild/SPECS/csync2.spec
 sed -i 's/sqlite3/sqlite/g' ~/rpmbuild/SPECS/csync2.spec
 sed -i '/Requires:.*sqlite/a Requires:       sqlite-libs' ~/rpmbuild/SPECS/csync2.spec
 
-# Modify the spec file to ensure the documentation directory exists
-sed -i '/%install/a \
-mkdir -p %{buildroot}%{_docdir}/csync2' ~/rpmbuild/SPECS/csync2.spec
-
 # Modify the spec file to remove references to the missing files
 sed -i '/ChangeLog/d' ~/rpmbuild/SPECS/csync2.spec
 sed -i '/README/d' ~/rpmbuild/SPECS/csync2.spec
@@ -105,10 +101,6 @@ sed -i '/%doc %{_docdir}\/csync2\/csync2.adoc/a %doc %{_docdir}/csync2/csync2-qu
 # Modify the %configure line to disable SQLite 2 and enable SQLite 3
 sed -i 's|%configure .*|%configure --enable-mysql --enable-postgres --disable-sqlite --enable-sqlite3 \\|' ~/rpmbuild/SPECS/csync2.spec
 
-# create /etc/csync2
-sed -i '/^%install/a \
-mkdir -p %{buildroot}%{_sysconfdir}/csync2' ~/rpmbuild/SPECS/csync2.spec
-
 # Add the csync2.socket systemd service management
 sed -i '/%install/a \
 install -D -m 644 csync2.socket %{buildroot}%{_unitdir}/csync2.socket' ~/rpmbuild/SPECS/csync2.spec
@@ -116,6 +108,14 @@ install -D -m 644 csync2.socket %{buildroot}%{_unitdir}/csync2.socket' ~/rpmbuil
 # Add command to install csync2.cfg
 sed -i '/%install/a \
 install -D -m 644 csync2.cfg %{buildroot}%{_sysconfdir}/csync2/csync2.cfg' ~/rpmbuild/SPECS/csync2.spec
+
+# create /etc/csync2
+sed -i '/^%install/a \
+mkdir -p %{buildroot}%{_sysconfdir}/csync2' ~/rpmbuild/SPECS/csync2.spec
+
+# Modify the spec file to ensure the documentation directory exists
+sed -i '/%install/a \
+mkdir -p %{buildroot}%{_docdir}/csync2' ~/rpmbuild/SPECS/csync2.spec
 
 # Ensure the service management in pre/post install scripts if not already present
 if ! grep -q "%pre" ~/rpmbuild/SPECS/csync2.spec; then
