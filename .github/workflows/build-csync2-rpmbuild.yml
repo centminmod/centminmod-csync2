@@ -1,9 +1,9 @@
 name: Build Csync2 RPM with rpmbuild
 
 on:
-  push:
-    branches:
-      - master
+  # push:
+  #   branches:
+  #     - master
   pull_request:
     branches:
       - master
