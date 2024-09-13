@@ -49,7 +49,9 @@ dnf install --allowerasing -y \
   libgcrypt-devel \
   gnutls-devel \
   librsync-devel \
-  mysql-devel
+  mysql-devel \
+  texlive \
+  texlive-latex
 
 # Download and build csync2 from GitHub
 wget "https://github.com/LINBIT/csync2/archive/refs/tags/csync2-${CSYNC2_VER}.tar.gz" -O "csync2-${CSYNC2_VER}.tar.gz"

@@ -48,7 +48,9 @@ dnf install --allowerasing -y \
   libgcrypt-devel \
   gnutls-devel \
   librsync-devel \
-  mysql-devel
+  mysql-devel \
+  texlive \
+  texlive-latex
 
 # Download and extract the csync2 source
 wget "https://github.com/LINBIT/csync2/archive/refs/tags/csync2-${CSYNC2_VER}.tar.gz" -O "csync2-${CSYNC2_VER}.tar.gz"
@@ -65,6 +67,7 @@ cp "../csync2-${CSYNC2_VER}.tar.gz" ~/rpmbuild/SOURCES/
 
 # Modify the %setup line in the spec file to match the extracted directory
 sed -i "s/^%setup.*/%setup -n csync2-csync2-${CSYNC2_VER}/" ~/rpmbuild/SPECS/csync2.spec
+sed -i '/^export CFLAGS=/i export RPM_OPT_FLAGS="$RPM_OPT_FLAGS -Wno-format-truncation -Wno-misleading-indentation -Wno-mismatched-dealloc"' ~/rpmbuild/SPECS/csync2.spec
 
 # Build the RPM using rpmbuild
 rpmbuild -ba ~/rpmbuild/SPECS/csync2.spec --define "dist .${DISTTAG}"

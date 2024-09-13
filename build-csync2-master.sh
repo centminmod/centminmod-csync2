@@ -49,7 +49,9 @@ dnf install --allowerasing -y \
   libgcrypt-devel \
   gnutls-devel \
   librsync-devel \
-  mysql-devel
+  mysql-devel \
+  texlive \
+  texlive-latex
 
 # Download the master branch source from GitHub
 wget "https://github.com/LINBIT/csync2/archive/refs/heads/master.zip" -O "csync2-${CSYNC2_VER}.zip"
