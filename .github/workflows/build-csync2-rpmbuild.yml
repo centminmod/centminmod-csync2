@@ -37,12 +37,13 @@ jobs:
           cp /workspace/build-csync2-rpmbuild.sh /tmp &&
           chmod +x /tmp/build-csync2-rpmbuild.sh &&
           # Run build script
-          /tmp/build-csync2-rpmbuild.sh $DISTTAG
+          /tmp/build-csync2-rpmbuild.sh $DISTTAG &&
+          # Copy the built RPMs to the mounted /workspace/rpms directory on the host
+          cp /root/rpmbuild/RPMS/x86_64/*.rpm /workspace/rpms/ &&
+          cp /root/rpmbuild/SRPMS/*.rpm /workspace/rpms/ &&
+          # Inspect RPM contents inside the container
+          rpm -qpl /root/rpmbuild/RPMS/x86_64/*.rpm
         "
-
-    - name: Inspect RPM contents
-      run: |
-        rpm -qpl /workspace/rpms/*.rpm
 
     - name: Set custom artifact name
       run: |
