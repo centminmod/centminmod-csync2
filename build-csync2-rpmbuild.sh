@@ -53,7 +53,7 @@ dnf install --allowerasing -y \
 # Download and extract the csync2 source
 wget "https://github.com/LINBIT/csync2/archive/refs/tags/csync2-${CSYNC2_VER}.tar.gz" -O "csync2-${CSYNC2_VER}.tar.gz"
 tar xzf "csync2-${CSYNC2_VER}.tar.gz"
-cd "csync2-${CSYNC2_VER}"
+cd "csync2-csync2-${CSYNC2_VER}"
 
 # Prepare for building the RPM
 mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
