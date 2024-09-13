@@ -139,8 +139,11 @@ if ! grep -q "%postun" ~/rpmbuild/SPECS/csync2.spec; then
 fi
 
 # Ensure the socket file is included in the %files section
-sed -i '/%files/i \
+sed -i '/%files/a \
 %{_unitdir}/csync2.socket' ~/rpmbuild/SPECS/csync2.spec
+
+# Replace %makeinstall with %make_install (modernize)
+sed -i 's/%makeinstall/%make_install/' ~/rpmbuild/SPECS/csync2.spec
 
 echo
 cat ~/rpmbuild/SPECS/csync2.spec
