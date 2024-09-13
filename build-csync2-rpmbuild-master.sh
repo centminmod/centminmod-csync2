@@ -79,6 +79,10 @@ cp "../csync2-${CSYNC2_VER}.tar.gz" ~/rpmbuild/SOURCES/
 sed -i "s/^%setup.*/%setup -n csync2-csync2-${CSYNC2_VER}/" ~/rpmbuild/SPECS/csync2.spec
 sed -i '/^export CFLAGS=/i export RPM_OPT_FLAGS="$RPM_OPT_FLAGS -Wno-format-truncation -Wno-misleading-indentation -Wno-mismatched-dealloc"' ~/rpmbuild/SPECS/csync2.spec
 
+# Use sed to replace incorrect package names in the spec file
+sed -i 's/libgnutls-devel/gnutls-devel/g' ~/rpmbuild/SPECS/csync2.spec
+sed -i 's/sqlite3-devel/sqlite-devel/g' ~/rpmbuild/SPECS/csync2.spec
+
 # Build the RPM using rpmbuild
 rpmbuild -ba ~/rpmbuild/SPECS/csync2.spec --define "dist .${DISTTAG}"
 
