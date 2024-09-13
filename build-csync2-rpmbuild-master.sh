@@ -105,6 +105,10 @@ sed -i '/%doc %{_docdir}\/csync2\/csync2.adoc/a %doc %{_docdir}/csync2/csync2-qu
 # Modify the %configure line to disable SQLite 2 and enable SQLite 3
 sed -i 's/%configure .*/%configure --enable-mysql --enable-postgres --disable-sqlite --enable-sqlite3 --sysconfdir=%{_sysconfdir}\/csync2 --docdir=%{_docdir}\/%{name}/' ~/rpmbuild/SPECS/csync2.spec
 
+# create /etc/csync2
+sed -i '/^%install/a \
+mkdir -p %{buildroot}%{_sysconfdir}/csync2' ~/rpmbuild/SPECS/csync2.spec
+
 echo
 cat ~/rpmbuild/SPECS/csync2.spec
 echo
