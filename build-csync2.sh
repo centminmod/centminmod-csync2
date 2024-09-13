@@ -38,6 +38,7 @@ dnf install --allowerasing -y \
   zlib-devel \
   sqlite \
   sqlite-devel \
+  sqlite-libs \
   xz \
   xz-devel \
   libtool \

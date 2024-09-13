@@ -37,6 +37,7 @@ dnf install --allowerasing -y \
   zlib-devel \
   sqlite \
   sqlite-devel \
+  sqlite-libs \
   xz \
   xz-devel \
   libtool \
@@ -91,6 +92,7 @@ sed -i '/csync2_paper\.pdf/d' ~/rpmbuild/SPECS/csync2.spec
 sed -i 's/libgnutls-devel/gnutls-devel/g' ~/rpmbuild/SPECS/csync2.spec
 sed -i 's/sqlite3-devel/sqlite-devel/g' ~/rpmbuild/SPECS/csync2.spec
 sed -i 's/sqlite3/sqlite/g' ~/rpmbuild/SPECS/csync2.spec
+sed -i '/Requires:.*sqlite/a Requires:       sqlite-libs' ~/rpmbuild/SPECS/csync2.spec
 
 # Regenerate the Makefile after modifying Makefile.am
 autoreconf --install
