@@ -111,8 +111,8 @@ echo
 
 # Move the built RPMs and SRPMs to the workspace for GitHub Actions
 mkdir -p /workspace/rpms
-cp ~/rpmbuild/RPMS/x86_64/*.rpm /workspace/rpms/
-cp ~/rpmbuild/SRPMS/*.rpm /workspace/rpms/
+cp ~/rpmbuild/RPMS/x86_64/*.rpm /workspace/rpms/ || echo "No RPM files found in ~/rpmbuild/RPMS/x86_64/"
+cp ~/rpmbuild/SRPMS/*.rpm /workspace/rpms/ || echo "No SRPM files found in ~/rpmbuild/SRPMS/"
 
 # Verify the copied files
 ls -lah /workspace/rpms/
