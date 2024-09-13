@@ -48,7 +48,20 @@ jobs:
           cp /root/rpmbuild/SRPMS/*.rpm /workspace/rpms/
           
           # List the RPMs in the /workspace/rpms directory
+          echo
           ls -lah /workspace/rpms/
+
+          # Install the built RPM (non-debug version)
+          echo
+          yum localinstall -y /root/rpmbuild/RPMS/x86_64/csync2-2.*.x86_64.rpm
+          
+          # Check the installed RPM details
+          echo
+          yum info csync2
+          
+          # Run the csync2 command to verify it works
+          echo
+          csync2 --help
         "
 
     - name: Debugging Show contents of /workspace/rpms
