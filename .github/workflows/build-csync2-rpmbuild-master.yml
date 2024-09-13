@@ -37,7 +37,10 @@ jobs:
           cp /workspace/build-csync2-rpmbuild-master.sh /tmp &&
           chmod +x /tmp/build-csync2-rpmbuild-master.sh &&
           # Run build script
-          /tmp/build-csync2-rpmbuild-master.sh $DISTTAG
+          /tmp/build-csync2-rpmbuild-master.sh $DISTTAG &&
+          # Verify RPM output
+          ls -lah /workspace/rpms/ &&
+          rpm -qpl /workspace/rpms/*.rpm
         "
 
     - name: Inspect RPM contents

@@ -96,9 +96,17 @@ sed -i '/xinetd.d\/csync2/d' ~/rpmbuild/SPECS/csync2.spec
 # Add csync2-quickstart.adoc to %files section
 sed -i '/%doc %{_docdir}\/csync2\/csync2.adoc/a %doc %{_docdir}/csync2/csync2-quickstart.adoc' ~/rpmbuild/SPECS/csync2.spec
 
+echo
+cat ~/rpmbuild/SPECS/csync2.spec
+echo
+
 # Build the RPM using rpmbuild
 rpmbuild -ba ~/rpmbuild/SPECS/csync2.spec --define "dist .${DISTTAG}"
 
-# Move the built RPM to the workspace for GitHub Actions
+# Move the built RPMs and SRPMs to the workspace for GitHub Actions
 mkdir -p /workspace/rpms
 cp ~/rpmbuild/RPMS/x86_64/*.rpm /workspace/rpms/
+cp ~/rpmbuild/SRPMS/*.rpm /workspace/rpms/
+
+# Verify the copied files
+ls -lah /workspace/rpms/
