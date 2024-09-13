@@ -113,22 +113,30 @@ mkdir -p %{buildroot}%{_sysconfdir}/csync2' ~/rpmbuild/SPECS/csync2.spec
 sed -i '/%install/a \
 install -D -m 644 csync2.socket %{buildroot}%{_unitdir}/csync2.socket' ~/rpmbuild/SPECS/csync2.spec
 
-# Ensure the service management in pre/post install scripts
-sed -i '/^%pre/i \
+# Ensure the service management in pre/post install scripts if not already present
+if ! grep -q "%pre" ~/rpmbuild/SPECS/csync2.spec; then
+    sed -i '/^%install/i \
 %pre \
 %service_add_pre csync2.socket' ~/rpmbuild/SPECS/csync2.spec
+fi
 
-sed -i '/^%post/i \
+if ! grep -q "%post" ~/rpmbuild/SPECS/csync2.spec; then
+    sed -i '/^%install/i \
 %post \
 %service_add_post csync2.socket' ~/rpmbuild/SPECS/csync2.spec
+fi
 
-sed -i '/^%preun/i \
+if ! grep -q "%preun" ~/rpmbuild/SPECS/csync2.spec; then
+    sed -i '/^%install/i \
 %preun \
 %service_del_preun csync2.socket' ~/rpmbuild/SPECS/csync2.spec
+fi
 
-sed -i '/^%postun/i \
+if ! grep -q "%postun" ~/rpmbuild/SPECS/csync2.spec; then
+    sed -i '/^%install/i \
 %postun \
 %service_del_postun csync2.socket' ~/rpmbuild/SPECS/csync2.spec
+fi
 
 # Ensure the socket file is included in the %files section
 sed -i '/%files/i \
