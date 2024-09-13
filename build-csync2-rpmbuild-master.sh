@@ -103,7 +103,7 @@ sed -i '/xinetd.d\/csync2/d' ~/rpmbuild/SPECS/csync2.spec
 sed -i '/%doc %{_docdir}\/csync2\/csync2.adoc/a %doc %{_docdir}/csync2/csync2-quickstart.adoc' ~/rpmbuild/SPECS/csync2.spec
 
 # Modify the %configure line to disable SQLite 2 and enable SQLite 3
-sed -i 's|%configure .*|%configure --enable-mysql --enable-postgres --disable-sqlite --enable-sqlite3 \|' ~/rpmbuild/SPECS/csync2.spec
+sed -i 's|%configure .*|%configure --enable-mysql --enable-postgres --disable-sqlite --enable-sqlite3 \\|' ~/rpmbuild/SPECS/csync2.spec
 
 # create /etc/csync2
 sed -i '/^%install/a \
