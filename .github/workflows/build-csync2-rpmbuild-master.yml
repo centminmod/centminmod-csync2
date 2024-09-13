@@ -51,7 +51,7 @@ jobs:
           ls -lah /workspace/rpms/
         "
 
-    - name: Debugging: Show contents of /workspace/rpms
+    - name: Debugging Show contents of /workspace/rpms
       run: |
         echo "Checking for RPMs in /workspace/rpms on host..."
         ls -lah ${{ github.workspace }}/rpms/
