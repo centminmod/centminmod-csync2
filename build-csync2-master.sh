@@ -62,6 +62,7 @@ mv csync2-master csync2-${CSYNC2_VER}
 cd "csync2-${CSYNC2_VER}"
 
 # Configure and build csync2 with the appropriate options to match the spec
+export CFLAGS="-Wno-format-truncation -Wno-misleading-indentation -Wno-mismatched-dealloc"
 ./autogen.sh
 ./configure --prefix=${CSYNC2_LIBDIR} \
             --sbindir=${CSYNC2_LIBDIR}/sbin \
