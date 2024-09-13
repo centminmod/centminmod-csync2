@@ -87,6 +87,12 @@ sed -i 's/sqlite3-devel/sqlite-devel/g' ~/rpmbuild/SPECS/csync2.spec
 sed -i '/%install/a \
 mkdir -p %{buildroot}%{_docdir}/csync2' ~/rpmbuild/SPECS/csync2.spec
 
+# Modify the spec file to remove references to the missing files
+sed -i '/ChangeLog/d' ~/rpmbuild/SPECS/csync2.spec
+sed -i '/README/d' ~/rpmbuild/SPECS/csync2.spec
+sed -i '/AUTHORS/d' ~/rpmbuild/SPECS/csync2.spec
+sed -i '/xinetd.d/csync2/d' ~/rpmbuild/SPECS/csync2.spec
+
 # Build the RPM using rpmbuild
 rpmbuild -ba ~/rpmbuild/SPECS/csync2.spec --define "dist .${DISTTAG}"
 
