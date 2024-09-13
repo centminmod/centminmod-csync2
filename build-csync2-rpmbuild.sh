@@ -69,12 +69,16 @@ cp "../csync2-${CSYNC2_VER}.tar.gz" ~/rpmbuild/SOURCES/
 sed -i "s/^%setup.*/%setup -n csync2-csync2-${CSYNC2_VER}/" ~/rpmbuild/SPECS/csync2.spec
 sed -i '/^export CFLAGS=/i export RPM_OPT_FLAGS="$RPM_OPT_FLAGS -Wno-format-truncation -Wno-misleading-indentation -Wno-mismatched-dealloc"' ~/rpmbuild/SPECS/csync2.spec
 
-# Remove references to csync2_paper.pdf in Makefile.am
-# Modify the %prep section of the spec file to add sed commands
+# Modify the %prep section of the spec file to add sed commands for csync2_paper references
 sed -i '/^%prep/a \
+%setup -q -n csync2-csync2-'${CSYNC2_VER}'\n\
 # Apply sed to remove csync2_paper references\n\
 sed -i \"/doc\\/csync2_paper\\.tex/d\" Makefile.am\n\
 sed -i \"/^if HAVE_PDFLATEX/,/^endif/d\" Makefile.am' ~/rpmbuild/SPECS/csync2.spec
+
+echo
+cat ~/rpmbuild/SPECS/csync2.spec
+echo
 
 # Build the RPM using rpmbuild
 rpmbuild -ba ~/rpmbuild/SPECS/csync2.spec --define "dist .${DISTTAG}"
