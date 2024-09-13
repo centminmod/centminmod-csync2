@@ -46,7 +46,7 @@ dnf install -y \
   flex \
   libnet-devel \
   libgcrypt-devel \
-  libgnutls-devel \
+  gnutls-devel \
   librsync-devel \
   mysql-devel
 
