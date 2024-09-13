@@ -37,6 +37,9 @@ jobs:
           cp /workspace/build-csync2-rpmbuild.sh /tmp &&
           chmod +x /tmp/build-csync2-rpmbuild.sh &&
           /tmp/build-csync2-rpmbuild.sh $DISTTAG &&
+          ls -lah /root/rpmbuild/RPMS/x86_64/ &&
+          ls -lah /root/rpmbuild/SRPMS/ &&
+          mkdir -p /workspace/rpms/ &&
           cp /root/rpmbuild/RPMS/x86_64/*.rpm /workspace/rpms/ &&
           cp /root/rpmbuild/SRPMS/*.rpm /workspace/rpms/ &&
           rpm -qpl /root/rpmbuild/RPMS/x86_64/csync2-2.*.x86_64.rpm || true
