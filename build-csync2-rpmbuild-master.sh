@@ -109,6 +109,31 @@ sed -i 's|%configure .*|%configure --enable-mysql --enable-postgres --disable-sq
 sed -i '/^%install/a \
 mkdir -p %{buildroot}%{_sysconfdir}/csync2' ~/rpmbuild/SPECS/csync2.spec
 
+# Add the csync2.socket systemd service management
+sed -i '/%install/a \
+install -D -m 644 csync2.socket %{buildroot}%{_unitdir}/csync2.socket' ~/rpmbuild/SPECS/csync2.spec
+
+# Ensure the service management in pre/post install scripts
+sed -i '/^%pre/i \
+%pre \
+%service_add_pre csync2.socket' ~/rpmbuild/SPECS/csync2.spec
+
+sed -i '/^%post/i \
+%post \
+%service_add_post csync2.socket' ~/rpmbuild/SPECS/csync2.spec
+
+sed -i '/^%preun/i \
+%preun \
+%service_del_preun csync2.socket' ~/rpmbuild/SPECS/csync2.spec
+
+sed -i '/^%postun/i \
+%postun \
+%service_del_postun csync2.socket' ~/rpmbuild/SPECS/csync2.spec
+
+# Ensure the socket file is included in the %files section
+sed -i '/%files/i \
+%{_unitdir}/csync2.socket' ~/rpmbuild/SPECS/csync2.spec
+
 echo
 cat ~/rpmbuild/SPECS/csync2.spec
 echo
@@ -124,6 +149,7 @@ echo
 
 # Move the built RPMs and SRPMs to the workspace for GitHub Actions
 mkdir -p /workspace/rpms
+cp ~/rpmbuild/SPECS/csync2.spec /workspace/rpms/
 cp ~/rpmbuild/RPMS/x86_64/*.rpm /workspace/rpms/ || echo "No RPM files found in ~/rpmbuild/RPMS/x86_64/"
 cp ~/rpmbuild/SRPMS/*.rpm /workspace/rpms/ || echo "No SRPM files found in ~/rpmbuild/SRPMS/"
 
