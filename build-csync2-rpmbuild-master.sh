@@ -113,6 +113,10 @@ mkdir -p %{buildroot}%{_sysconfdir}/csync2' ~/rpmbuild/SPECS/csync2.spec
 sed -i '/%install/a \
 install -D -m 644 csync2.socket %{buildroot}%{_unitdir}/csync2.socket' ~/rpmbuild/SPECS/csync2.spec
 
+# Add command to install csync2.cfg
+sed -i '/%install/a \
+install -D -m 644 csync2.cfg %{buildroot}%{_sysconfdir}/csync2/csync2.cfg' ~/rpmbuild/SPECS/csync2.spec
+
 # Ensure the service management in pre/post install scripts if not already present
 if ! grep -q "%pre" ~/rpmbuild/SPECS/csync2.spec; then
     sed -i '/^%install/i \
