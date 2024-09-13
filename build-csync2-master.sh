@@ -54,7 +54,10 @@ dnf install --allowerasing -y \
 # Download the master branch source from GitHub
 wget "https://github.com/LINBIT/csync2/archive/refs/heads/master.zip" -O "csync2-${CSYNC2_VER}.zip"
 unzip "csync2-${CSYNC2_VER}.zip"
-cd "csync2-master"
+
+# Rename the extracted directory to match the spec file's expectation
+mv csync2-master csync2-${CSYNC2_VER}
+cd "csync2-${CSYNC2_VER}"
 
 # Configure and build csync2 with the appropriate options to match the spec
 ./autogen.sh

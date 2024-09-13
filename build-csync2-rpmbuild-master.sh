@@ -53,12 +53,18 @@ dnf install --allowerasing -y \
 # Download the master branch source from GitHub
 wget "https://github.com/LINBIT/csync2/archive/refs/heads/master.zip" -O "csync2-${CSYNC2_VER}.zip"
 unzip "csync2-${CSYNC2_VER}.zip"
-cd "csync2-master"
+
+# Rename the extracted directory to match the spec file's expectation
+mv csync2-master csync2-${CSYNC2_VER}
+cd "csync2-${CSYNC2_VER}"
 
 # Prepare for building the RPM
 mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
 cp csync2.spec ~/rpmbuild/SPECS/
 cp "../csync2-${CSYNC2_VER}.tar.gz" ~/rpmbuild/SOURCES/
+
+# Modify the %setup line in the spec file to match the extracted directory
+sed -i "s/^%setup.*/%setup -n csync2-csync2-${CSYNC2_VER}/" ~/rpmbuild/SPECS/csync2.spec
 
 # Build the RPM using rpmbuild
 rpmbuild -ba ~/rpmbuild/SPECS/csync2.spec --define "dist .${DISTTAG}"

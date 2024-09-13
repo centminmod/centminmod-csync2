@@ -54,7 +54,10 @@ dnf install --allowerasing -y \
 # Download and build csync2 from GitHub
 wget "https://github.com/LINBIT/csync2/archive/refs/tags/csync2-${CSYNC2_VER}.tar.gz" -O "csync2-${CSYNC2_VER}.tar.gz"
 tar xzf "csync2-${CSYNC2_VER}.tar.gz"
-cd "csync2-csync2-${CSYNC2_VER}"
+
+# Rename the extracted directory to match the spec file's expectation
+mv csync2-csync2-${CSYNC2_VER} csync2-${CSYNC2_VER}
+cd "csync2-${CSYNC2_VER}"
 
 # Configure and build csync2 with the appropriate options to match the spec
 ./autogen.sh
