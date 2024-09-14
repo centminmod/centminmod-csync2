@@ -1,10 +1,11 @@
-name: Build Csync2 RPM with rpmbuild - master 2.1
+name: rpmbuild Csync2 2.1 RPM Master + MariaDB
 
 on:
   push:
     branches:
       - master
     paths-ignore:
+      - '.github/workflows/build-cmm-csync2-rpmbuild-master-sqlite-only.yml'
       - '.github/workflows/build-cmm-csync2-rpmbuild-master.yml'
       - '.github/workflows/build-csync2-rpmbuild.yml'
       - '.github/workflows/build-csync2-master.yml'

@@ -1,4 +1,4 @@
-name: Build Csync2 RPM with rpmbuild
+name: rpmbuild Csync2 2.0 RPM
 
 on:
   # push:

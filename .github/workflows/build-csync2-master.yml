@@ -1,4 +1,4 @@
-name: Build Csync2 RPM - master 2.1
+name: FPM Csync2 2.1 RPM Master
 
 on:
   # push:

@@ -1,4 +1,4 @@
-name: CMM rpmbuild Csync2 2.1 RPM Master + MariaDB
+name: CMM rpmbuild Csync2 2.1 sqlite Only RPM Master
 
 on:
   workflow_dispatch:
@@ -30,11 +30,11 @@ jobs:
           fi
           
           # Copy build script into the container
-          cp /workspace/build-cmm-csync2-rpmbuild-master.sh /tmp
-          chmod +x /tmp/build-cmm-csync2-rpmbuild-master.sh
+          cp /workspace/build-cmm-csync2-rpmbuild-master-sqlite-only.sh /tmp
+          chmod +x /tmp/build-cmm-csync2-rpmbuild-master-sqlite-only.sh
 
           # Run build script
-          /tmp/build-cmm-csync2-rpmbuild-master.sh $DISTTAG
+          /tmp/build-cmm-csync2-rpmbuild-master-sqlite-only.sh $DISTTAG
 
           # Copy the built RPMs to the mounted /workspace/rpms directory on the host
           mkdir -p /workspace/rpms
