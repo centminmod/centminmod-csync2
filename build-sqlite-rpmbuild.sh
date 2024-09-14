@@ -70,7 +70,7 @@ access without running a separate RDBMS process.
 %build
 export CFLAGS="%{optflags} -DSQLITE_ENABLE_COLUMN_METADATA=1 -DSQLITE_SECURE_DELETE=1 -DSQLITE_ENABLE_UNLOCK_NOTIFY=1 -DSQLITE_ENABLE_DBSTAT_VTAB=1 -DSQLITE_ENABLE_FTS3_TOKENIZER=1 -DSQLITE_ENABLE_DESERIALIZE=1"
 %configure \
-    --disable-static \
+    --enable-static \
     --enable-fts5 \
     --enable-fts4 \
     --enable-fts3 \
@@ -81,11 +81,7 @@ export CFLAGS="%{optflags} -DSQLITE_ENABLE_COLUMN_METADATA=1 -DSQLITE_SECURE_DEL
     --enable-dynamic-extensions \
     --enable-readline \
     --enable-session \
-    --enable-shared \
-    --with-crypto-lib \
-    --enable-fts4-unicode61 \
-    --enable-fts3-tokenizer \
-    --enable-fts4-deferred
+    --enable-shared
 
 make %{?_smp_mflags}
 
