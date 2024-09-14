@@ -81,7 +81,6 @@ export CFLAGS="%{optflags} -DSQLITE_ENABLE_COLUMN_METADATA=1 -DSQLITE_SECURE_DEL
     --enable-fts4 \
     --enable-fts3 \
     --enable-rtree \
-    --enable-math \
     --enable-json1 \
     --enable-threadsafe \
     --enable-dynamic-extensions \
@@ -124,12 +123,13 @@ developing applications that use SQLite.
 %defattr(-,root,root,-)
 %{_includedir}/*.h
 %{_libdir}/*.so
+%{_libdir}/*.a
 %{_libdir}/pkgconfig/*.pc
 
 %changelog
 * $(date "+%a %b %d %Y") Build Script <build@script.local> - ${SQLITE_VER}-1
 - Automated build for SQLite ${SQLITE_VER}
-- Enabled FTS5, FTS4, FTS3, RTree, Math, JSON1, Thread-safe, Dynamic extensions, Readline, and Session
+- Enabled FTS5, FTS4, FTS3, RTree, JSON1, Thread-safe, Dynamic extensions, Readline, and Session
 - Added CFLAGS for additional features and optimizations
 - Included support for ICU, OpenSSL, and libedit
 EOF
