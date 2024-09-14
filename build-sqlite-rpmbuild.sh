@@ -58,7 +58,7 @@ BuildRequires: tcl-devel
 BuildRequires: openssl-devel
 BuildRequires: libicu-devel
 BuildRequires: libedit-devel
-Requires: sqlite-libs = %{version}-%{release}
+Requires: sqlite-libs%{?_isa} = %{version}-%{release}
 
 %description
 SQLite is a C library that implements an SQL database engine. A large
@@ -90,7 +90,7 @@ developing applications that use SQLite.
 %setup -q -n sqlite-autoconf-${SQLITE_DOWNLOAD_VER}
 
 %build
-export CFLAGS="%{optflags} -O3 -flto -DSQLITE_ENABLE_COLUMN_METADATA=1 -DSQLITE_SECURE_DELETE=1 -DSQLITE_ENABLE_UNLOCK_NOTIFY=1 -DSQLITE_ENABLE_DBSTAT_VTAB=1 -DSQLITE_ENABLE_FTS3_TOKENIZER=1 -DSQLITE_ENABLE_DESERIALIZE=1"
+export CFLAGS="%{optflags} -O3 -flto -DSQLITE_ENABLE_COLUMN_METADATA=1 -DSQLITE_SECURE_DELETE=1 -DSQLITE_ENABLE_UNLOCK_NOTIFY=1 -DSQLITE_ENABLE_DBSTAT_VTAB=1 -DSQLITE_ENABLE_FTS3_TOKENIZER=1"
 export LDFLAGS="%{?__global_ldflags} -flto"
 %configure \
     --enable-threadsafe \
@@ -100,7 +100,6 @@ export LDFLAGS="%{?__global_ldflags} -flto"
     --enable-fts4 \
     --enable-fts5 \
     --enable-rtree \
-    --enable-json1 \
     --enable-session \
     --enable-shared \
     --enable-static
@@ -110,6 +109,10 @@ make %{?_smp_mflags}
 %install
 rm -rf \$RPM_BUILD_ROOT
 make install DESTDIR=\$RPM_BUILD_ROOT
+
+# Strip debug info
+%{__strip} --strip-debug \$RPM_BUILD_ROOT%{_libdir}/*.so*
+%{__strip} --strip-unneeded \$RPM_BUILD_ROOT%{_bindir}/*
 
 # Remove libtool archives
 find \$RPM_BUILD_ROOT -name '*.la' -exec rm -f {} ';'
@@ -140,9 +143,9 @@ rm -rf \$RPM_BUILD_ROOT
 %changelog
 * $(date "+%a %b %d %Y") Build Script <build@script.local> - ${SQLITE_VER}-1
 - Automated build for SQLite ${SQLITE_VER}
-- Enabled FTS3, FTS4, FTS5, RTree, JSON1, Thread-safe, Dynamic extensions, Readline, and Session
+- Enabled FTS3, FTS4, FTS5, RTree, Thread-safe, Dynamic extensions, Readline, and Session
 - Added CFLAGS for additional features and optimizations
-- Compiled with -O3 and LTO for improved performance
+- Compiled with -O3 and LTO for improved performance and reduced size
 EOF
 
 # Copy the source to rpmbuild/SOURCES
@@ -151,9 +154,10 @@ cp "sqlite-${SQLITE_VER}.tar.gz" ~/rpmbuild/SOURCES/
 # Build the RPM
 rpmbuild -ba ~/rpmbuild/SPECS/sqlite.spec --define "dist .${DISTTAG}"
 
-echo
+echo "RPMs built:"
 ls -lah ~/rpmbuild/RPMS/x86_64/
 echo
+echo "Source RPM built:"
 ls -lah ~/rpmbuild/SRPMS/
 echo
 
@@ -164,4 +168,14 @@ cp ~/rpmbuild/RPMS/x86_64/*.rpm /workspace/rpms/ || echo "No RPM files found in 
 cp ~/rpmbuild/SRPMS/*.rpm /workspace/rpms/ || echo "No SRPM files found in ~/rpmbuild/SRPMS/"
 
 # Verify the copied files
+echo "Contents of /workspace/rpms:"
 ls -lah /workspace/rpms/
+
+# Optional: Compare sizes with system packages
+echo
+echo "Comparing sizes with system packages:"
+for pkg in sqlite sqlite-libs sqlite-devel; do
+  echo "${pkg}:"
+  rpm -q --queryformat "%{SIZE}\n" ${pkg}
+  rpm -q --queryformat "%{SIZE}\n" /workspace/rpms/${pkg}-${SQLITE_VER}-1.${DISTTAG}.x86_64.rpm
+done
