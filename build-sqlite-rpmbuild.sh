@@ -86,8 +86,9 @@ Requires: sqlite-libs%{?_isa} = %{version}-%{release}
 Requires: pkgconfig
 
 %description devel
-The sqlite-devel package contains libraries and header files for
-developing applications that use SQLite.
+This package contains the header files and development documentation
+for sqlite. If you like to develop programs using sqlite, you will need
+to install sqlite-devel.
 
 %prep
 %setup -q -n sqlite-autoconf-${SQLITE_DOWNLOAD_VER}
