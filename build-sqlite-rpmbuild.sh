@@ -64,6 +64,8 @@ Requires: zlib
 Requires: openssl
 Requires: libicu
 Requires: libedit
+Provides: sqlite-libs = %{version}-%{release}
+Obsoletes: sqlite-libs < %{version}-%{release}
 
 %description
 SQLite is a C library that implements an SQL database engine. 
@@ -74,19 +76,20 @@ access without running a separate RDBMS process.
 %setup -q -n sqlite-autoconf-${SQLITE_DOWNLOAD_VER}
 
 %build
-export CFLAGS="%{optflags} -DSQLITE_ENABLE_COLUMN_METADATA=1 -DSQLITE_SECURE_DELETE=1 -DSQLITE_ENABLE_UNLOCK_NOTIFY=1 -DSQLITE_ENABLE_DBSTAT_VTAB=1 -DSQLITE_ENABLE_FTS3_TOKENIZER=1 -DSQLITE_ENABLE_DESERIALIZE=1"
+export CFLAGS="%{optflags} -O3 -flto -DSQLITE_ENABLE_COLUMN_METADATA=1 -DSQLITE_SECURE_DELETE=1 -DSQLITE_ENABLE_UNLOCK_NOTIFY=1 -DSQLITE_ENABLE_DBSTAT_VTAB=1 -DSQLITE_ENABLE_FTS3_TOKENIZER=1 -DSQLITE_ENABLE_DESERIALIZE=1"
+export LDFLAGS="%{?__global_ldflags} -flto"
 %configure \
-    --enable-static \
-    --enable-fts5 \
-    --enable-fts4 \
+    --enable-threadsafe \
+    --enable-readline \
+    --enable-dynamic-extensions \
     --enable-fts3 \
+    --enable-fts4 \
+    --enable-fts5 \
     --enable-rtree \
     --enable-json1 \
-    --enable-threadsafe \
-    --enable-dynamic-extensions \
-    --enable-readline \
     --enable-session \
-    --enable-shared
+    --enable-shared \
+    --enable-static
 
 make %{?_smp_mflags}
 
@@ -113,7 +116,9 @@ rm -rf \$RPM_BUILD_ROOT
 %package devel
 Summary: Development files for SQLite
 Requires: %{name}%{?_isa} = %{version}-%{release}
-Requires: pkg-config
+Requires: pkgconfig
+Provides: sqlite-devel = %{version}-%{release}
+Obsoletes: sqlite-devel < %{version}-%{release}
 
 %description devel
 The sqlite-devel package contains libraries and header files for
@@ -129,9 +134,9 @@ developing applications that use SQLite.
 %changelog
 * $(date "+%a %b %d %Y") Build Script <build@script.local> - ${SQLITE_VER}-1
 - Automated build for SQLite ${SQLITE_VER}
-- Enabled FTS5, FTS4, FTS3, RTree, JSON1, Thread-safe, Dynamic extensions, Readline, and Session
+- Enabled FTS3, FTS4, FTS5, RTree, JSON1, Thread-safe, Dynamic extensions, Readline, and Session
 - Added CFLAGS for additional features and optimizations
-- Included support for ICU, OpenSSL, and libedit
+- Compiled with -O3 and LTO for improved performance
 EOF
 
 # Copy the source to rpmbuild/SOURCES
