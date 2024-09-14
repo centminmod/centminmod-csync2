@@ -66,10 +66,10 @@ jobs:
           # Check permissions and ownership
           echo
           echo 'ls -l /etc/csync2'
-          ls -l /etc/csync2 || echo "/etc/csync2 does not exist"
+          ls -l /etc/csync2 || echo '/etc/csync2 does not exist'
           echo
           echo 'ls -l /usr/sbin/csync2'
-          ls -l /usr/sbin/csync2 || echo "csync2 binary not found in /usr/sbin"
+          ls -l /usr/sbin/csync2 || echo 'csync2 binary not found in /usr/sbin'
 
           echo
           echo 'ldd /usr/sbin/csync2'
