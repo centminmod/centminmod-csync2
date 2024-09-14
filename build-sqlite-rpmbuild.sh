@@ -64,13 +64,19 @@ Requires: zlib
 Requires: openssl
 Requires: libicu
 Requires: libedit
+Provides: sqlite = %{version}-%{release}
+Provides: sqlite(x86-64) = %{version}-%{release}
 Provides: sqlite-libs = %{version}-%{release}
 Obsoletes: sqlite-libs < %{version}-%{release}
 
 %description
-SQLite is a C library that implements an SQL database engine. 
-Programs that link with the SQLite library can have SQL database 
-access without running a separate RDBMS process.
+SQLite is a C library that implements an SQL database engine. A large
+subset of SQL92 is supported. A complete database is stored in a
+single disk file. The API is designed for convenience and ease of use.
+Applications that link against SQLite can enjoy the power and
+flexibility of an SQL database without the administrative hassles of
+supporting a separate database server.  Version 2 and version 3 binaries
+are named to permit each to be installed on a single host
 
 %prep
 %setup -q -n sqlite-autoconf-${SQLITE_DOWNLOAD_VER}
