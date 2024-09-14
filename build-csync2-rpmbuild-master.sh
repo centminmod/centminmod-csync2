@@ -187,6 +187,15 @@ echo
 # Add systemd requirements once
 sed -i '/Requires:       sqlite-libs/a Requires(post): systemd\nRequires(preun): systemd\nRequires(postun): systemd' ~/rpmbuild/SPECS/csync2.spec
 
+# Check if %pre section exists and remove it if found
+if grep -q '^%pre$' ~/rpmbuild/SPECS/csync2.spec; then
+    sed -i '/^%pre$/,/^$/d' ~/rpmbuild/SPECS/csync2.spec
+    sed -i '/^%pre$/d' ~/rpmbuild/SPECS/csync2.spec
+    echo "Removed %pre section from spec file"
+else
+    echo "No %pre section found in spec file"
+fi
+
 # Add new changelog entry
 sed -i '/^%changelog/a \* '"$(date +"%a %b %d %Y")"' George Liu <centminmod.com> - 2.1-1\n- Update for EL8/EL9 OSes\n' ~/rpmbuild/SPECS/csync2.spec
 
