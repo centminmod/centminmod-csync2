@@ -90,9 +90,6 @@ sed -i 's/sqlite3/sqlite/g' ~/rpmbuild/SPECS/csync2.spec
 sed -i '/Requires:.*sqlite/a Requires:       sqlite-libs' ~/rpmbuild/SPECS/csync2.spec
 
 # Modify the spec file to remove references to the missing files
-# sed -i '/ChangeLog/d' ~/rpmbuild/SPECS/csync2.spec
-# sed -i '/README/d' ~/rpmbuild/SPECS/csync2.spec
-# sed -i '/AUTHORS/d' ~/rpmbuild/SPECS/csync2.spec
 sed -i '/xinetd.d\/csync2/d' ~/rpmbuild/SPECS/csync2.spec
 
 # Add csync2-quickstart.adoc to %files section
@@ -108,9 +105,10 @@ install -m 644 AUTHORS.adoc %{buildroot}%{_docdir}/csync2/AUTHORS.adoc\n\
 install -m 644 README %{buildroot}%{_docdir}/csync2/README\n\
 install -m 644 README.adoc %{buildroot}%{_docdir}/csync2/README.adoc' ~/rpmbuild/SPECS/csync2.spec
 
-# Add the csync2.socket systemd service management
+# Add the csync2.socket and csync2@.service systemd service management
 sed -i '/%install/a \
-install -D -m 644 csync2.socket %{buildroot}%{_unitdir}/csync2.socket' ~/rpmbuild/SPECS/csync2.spec
+install -D -m 644 csync2.socket %{buildroot}%{_unitdir}/csync2.socket\n\
+install -D -m 644 csync2@.service %{buildroot}%{_unitdir}/csync2@.service' ~/rpmbuild/SPECS/csync2.spec
 
 # Add command to install csync2.cfg
 sed -i '/%install/a \
@@ -127,38 +125,14 @@ mkdir -p %{buildroot}%{_docdir}/csync2' ~/rpmbuild/SPECS/csync2.spec
 # Ensure all necessary directories are created
 sed -i '/%install/a mkdir -p %{buildroot}%{_localstatedir}/lib/csync2' ~/rpmbuild/SPECS/csync2.spec
 
-# Ensure the service management in pre/post install scripts if not already present
-if ! grep -q "%pre" ~/rpmbuild/SPECS/csync2.spec; then
-    sed -i '/^%install/i \
-%pre \
-%service_add_pre csync2.socket' ~/rpmbuild/SPECS/csync2.spec
-fi
-
-if ! grep -q "%post" ~/rpmbuild/SPECS/csync2.spec; then
-    sed -i '/^%install/i \
-%post \
-%service_add_post csync2.socket' ~/rpmbuild/SPECS/csync2.spec
-fi
-
-if ! grep -q "%preun" ~/rpmbuild/SPECS/csync2.spec; then
-    sed -i '/^%install/i \
-%preun \
-%service_del_preun csync2.socket' ~/rpmbuild/SPECS/csync2.spec
-fi
-
-if ! grep -q "%postun" ~/rpmbuild/SPECS/csync2.spec; then
-    sed -i '/^%install/i \
-%postun \
-%service_del_postun csync2.socket' ~/rpmbuild/SPECS/csync2.spec
-fi
-
 # Add a wildcard for any other documentation files
 sed -i '/%files/a \
 %doc %{_docdir}/csync2/*' ~/rpmbuild/SPECS/csync2.spec
 
-# Ensure the socket file is included in the %files section
+# Ensure the socket and service files are included in the %files section
 sed -i '/%files/a \
-%{_unitdir}/csync2.socket' ~/rpmbuild/SPECS/csync2.spec
+%{_unitdir}/csync2.socket\n\
+%{_unitdir}/csync2@.service' ~/rpmbuild/SPECS/csync2.spec
 
 # Add documentation files to the %files section
 sed -i '/%files/a \
@@ -175,11 +149,28 @@ sed -i 's/%makeinstall/%make_install/' ~/rpmbuild/SPECS/csync2.spec
 # Update the %files section to correctly reference csync2.cfg
 sed -i 's|%config(noreplace) %{_sysconfdir}/csync2.cfg|%config(noreplace) %{_sysconfdir}/csync2/csync2.cfg|' ~/rpmbuild/SPECS/csync2.spec
 
-# Replace SUSE-specific service management with RHEL-compatible commands
-sed -i 's/%service_add_pre csync2.socket/systemctl preset csync2.socket >\/dev\/null 2>\&1 || :/' ~/rpmbuild/SPECS/csync2.spec
-sed -i 's/%service_add_post csync2.socket/systemctl daemon-reload >\/dev\/null 2>\&1 || :/' ~/rpmbuild/SPECS/csync2.spec
-sed -i 's/%service_del_preun csync2.socket/systemctl --no-reload disable csync2.socket >\/dev\/null 2>\&1 || :\nsystemctl stop csync2.socket >\/dev\/null 2>\&1 || :/' ~/rpmbuild/SPECS/csync2.spec
-sed -i 's/%service_del_postun csync2.socket/systemctl daemon-reload >\/dev\/null 2>\&1 || :/' ~/rpmbuild/SPECS/csync2.spec
+# Update the %post section
+sed -i '/%post/,/^$/c \
+%post\n\
+systemctl daemon-reload >/dev/null 2>\&1 || :\n\
+systemctl preset csync2.socket >/dev/null 2>\&1 || :\n\
+systemctl preset csync2@.service >/dev/null 2>\&1 || :\n\
+if ! grep -q "^csync2" %{_sysconfdir}/services ; then\n\
+    echo "csync2          30865/tcp" >>%{_sysconfdir}/services\n\
+fi' ~/rpmbuild/SPECS/csync2.spec
+
+# Update the %preun section
+sed -i '/%preun/,/^$/c \
+%preun\n\
+systemctl --no-reload disable csync2.socket >/dev/null 2>\&1 || :\n\
+systemctl stop csync2.socket >/dev/null 2>\&1 || :\n\
+systemctl --no-reload disable csync2@.service >/dev/null 2>\&1 || :\n\
+systemctl stop csync2@.service >/dev/null 2>\&1 || :' ~/rpmbuild/SPECS/csync2.spec
+
+# Update the %postun section
+sed -i '/%postun/,/^$/c \
+%postun\n\
+systemctl daemon-reload >/dev/null 2>\&1 || :' ~/rpmbuild/SPECS/csync2.spec
 
 # Update BuildRequires for systemd
 sed -i 's/BuildRequires:  systemd/BuildRequires:  systemd-rpm-macros/' ~/rpmbuild/SPECS/csync2.spec
