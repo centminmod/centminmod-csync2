@@ -73,7 +73,7 @@ sed -i "s/^Version:.*/Version: ${CSYNC2_VER}/" ~/rpmbuild/SPECS/csync2.spec
 cp "../csync2-${CSYNC2_VER}.tar.gz" ~/rpmbuild/SOURCES/
 
 # Modify the %configure line to disable SQLite 2 and enable SQLite 3
-sed -i 's|%configure .*|%configure --disable-sqlite --enable-sqlite3 \\|' ~/rpmbuild/SPECS/csync2.spec
+sed -i 's|%configure .*|%configure --enable-systemd --disable-sqlite --enable-sqlite3 \\|' ~/rpmbuild/SPECS/csync2.spec
 
 # Add new changelog entry
 sed -i '/^%changelog/a \* '"$(date +"%a %b %d %Y")"' George Liu <centminmod.com> - 2.1-1\n- Update for EL8/EL9 OSes sqlite3 only\n' ~/rpmbuild/SPECS/csync2.spec

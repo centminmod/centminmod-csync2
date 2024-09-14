@@ -74,7 +74,8 @@ export CFLAGS="-Wno-format-truncation -Wno-misleading-indentation -Wno-mismatche
             --docdir=${CSYNC2_LIBDIR}/share/doc/csync2 \
             --enable-mysql \
             --enable-postgres \
-            --enable-sqlite3
+            --enable-sqlite3 \
+            --enable-systemd
 
 # Compile the source
 make -j$(nproc)
