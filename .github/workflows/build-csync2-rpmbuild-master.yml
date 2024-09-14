@@ -66,17 +66,21 @@ jobs:
           echo
           echo 'ls -l /usr/sbin/csync2'
           ls -l /usr/sbin/csync2 || echo "csync2 binary not found in /usr/sbin"
+
+          echo
+          echo 'ldd /usr/sbin/csync2'
+          ldd /usr/sbin/csync2
           
           # Run the csync2 command to verify it works
           echo
-          echo 'csync2 -v --help'
-          csync2 -v --help || true
+          echo '/usr/sbin/csync2 -v --help'
+          /usr/sbin/csync2 -v --help || true
           echo
-          echo 'csync2 --help'
-          csync2 --help || true
+          echo '/usr/sbin/csync2 --help'
+          /usr/sbin/csync2 --help || true
           echo
-          echo 'csync2 -v'
-          csync2 -v || true
+          echo '/usr/sbin/csync2 -v'
+          /usr/sbin/csync2 -v || true
         "
 
     - name: Debugging Show contents of /workspace/rpms
