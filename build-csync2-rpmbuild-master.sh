@@ -176,10 +176,10 @@ sed -i 's/%makeinstall/%make_install/' ~/rpmbuild/SPECS/csync2.spec
 sed -i 's|%config(noreplace) %{_sysconfdir}/csync2.cfg|%config(noreplace) %{_sysconfdir}/csync2/csync2.cfg|' ~/rpmbuild/SPECS/csync2.spec
 
 # Replace SUSE-specific service management with RHEL-compatible commands
-sed -i 's/%service_add_pre csync2.socket/systemctl preset csync2.socket >/dev/null 2>\&1 || :/' ~/rpmbuild/SPECS/csync2.spec
-sed -i 's/%service_add_post csync2.socket/systemctl daemon-reload >/dev/null 2>\&1 || :/' ~/rpmbuild/SPECS/csync2.spec
-sed -i 's/%service_del_preun csync2.socket/systemctl --no-reload disable csync2.socket >/dev/null 2>\&1 || :\nsystemctl stop csync2.socket >/dev/null 2>\&1 || :/' ~/rpmbuild/SPECS/csync2.spec
-sed -i 's/%service_del_postun csync2.socket/systemctl daemon-reload >/dev/null 2>\&1 || :/' ~/rpmbuild/SPECS/csync2.spec
+sed -i 's/%service_add_pre csync2.socket/systemctl preset csync2.socket >\/dev\/null 2>\&1 || :/' ~/rpmbuild/SPECS/csync2.spec
+sed -i 's/%service_add_post csync2.socket/systemctl daemon-reload >\/dev\/null 2>\&1 || :/' ~/rpmbuild/SPECS/csync2.spec
+sed -i 's/%service_del_preun csync2.socket/systemctl --no-reload disable csync2.socket >\/dev\/null 2>\&1 || :\nsystemctl stop csync2.socket >\/dev\/null 2>\&1 || :/' ~/rpmbuild/SPECS/csync2.spec
+sed -i 's/%service_del_postun csync2.socket/systemctl daemon-reload >\/dev\/null 2>\&1 || :/' ~/rpmbuild/SPECS/csync2.spec
 
 # Update BuildRequires for systemd
 sed -i 's/BuildRequires:  systemd/BuildRequires:  systemd-rpm-macros/' ~/rpmbuild/SPECS/csync2.spec
