@@ -58,6 +58,10 @@ jobs:
           # Check package files
           echo
           rpm -ql csync2
+
+          # Changelog check
+          echo
+          rpm -q --changelog csync2
          
           # Check the installed RPM details
           echo
@@ -80,9 +84,6 @@ jobs:
           ldd /usr/sbin/csync2
           
           # Run the csync2 command to verify it works
-          echo
-          echo '/usr/sbin/csync2 --help'
-          /usr/sbin/csync2 --help || true
           echo
           echo '/usr/sbin/csync2 -v'
           /usr/sbin/csync2 -v || true

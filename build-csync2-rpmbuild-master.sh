@@ -187,6 +187,9 @@ sed -i 's/BuildRequires:  systemd/BuildRequires:  systemd-rpm-macros/' ~/rpmbuil
 # Add systemd requirements
 sed -i '/Requires:/a Requires(post): systemd\nRequires(preun): systemd\nRequires(postun): systemd' ~/rpmbuild/SPECS/csync2.spec
 
+# Add new changelog entry
+sed -i '/^%changelog/a \* '"$(date +"%a %b %d %Y")"' George Liu <centminmod.com> - 2.1-1\n- Update for EL8/EL9 OSes\n' ~/rpmbuild/SPECS/csync2.spec
+
 echo
 cat ~/rpmbuild/SPECS/csync2.spec
 echo
