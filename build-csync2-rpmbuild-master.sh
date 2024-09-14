@@ -68,7 +68,7 @@ mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
 cp csync2.spec ~/rpmbuild/SPECS/
 
 # Modify the Version field to 2.1
-sed -i 's/^Version:.*/Version: 2.1/' ~/rpmbuild/SPECS/csync2.spec
+sed -i "s/^Version:.*/Version: ${CSYNC2_VER}/" ~/rpmbuild/SPECS/csync2.spec
 
 # Modify the Release field (optional)
 sed -i 's/^Release:.*/Release: 1%{?dist}/' ~/rpmbuild/SPECS/csync2.spec
