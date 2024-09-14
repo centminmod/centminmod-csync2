@@ -188,9 +188,9 @@ sed -i 's/BuildRequires:  systemd/BuildRequires:  systemd-rpm-macros/' ~/rpmbuil
 sed -i '/Requires:/a Requires(post): systemd\nRequires(preun): systemd\nRequires(postun): systemd' ~/rpmbuild/SPECS/csync2.spec
 
 # Remove existing systemd requirements
-sed -i '/Requires(post): systemd/d' ~/rpmbuild/SPECS/csync2.spec
-sed -i '/Requires(preun): systemd/d' ~/rpmbuild/SPECS/csync2.spec
-sed -i '/Requires(postun): systemd/d' ~/rpmbuild/SPECS/csync2.spec
+sed -i '/Requires\(post\): systemd/d' ~/rpmbuild/SPECS/csync2.spec
+sed -i '/Requires\(preun\): systemd/d' ~/rpmbuild/SPECS/csync2.spec
+sed -i '/Requires\(postun\): systemd/d' ~/rpmbuild/SPECS/csync2.spec
 
 # Add systemd requirements once
 sed -i '/^Requires:/a Requires(post): systemd\nRequires(preun): systemd\nRequires(postun): systemd' ~/rpmbuild/SPECS/csync2.spec
