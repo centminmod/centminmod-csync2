@@ -9,9 +9,15 @@ SQLITE_DOWNLOAD_VER=3460100
 # Determine DISTTAG based on OS release
 if grep -q "release 8" /etc/redhat-release; then
     DISTTAG='el8'
+    CRB_REPO="powertools"
 elif grep -q "release 9" /etc/redhat-release; then
     DISTTAG='el9'
+    CRB_REPO="crb"
 fi
+
+# Enable repositories: CRB and EPEL
+dnf install -y epel-release
+dnf config-manager --set-enabled ${CRB_REPO}
 
 # Install dependencies
 dnf groupinstall 'Development Tools' -y
