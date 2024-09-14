@@ -181,6 +181,14 @@ sed -i 's/%service_add_post csync2.socket/systemctl daemon-reload >\/dev\/null 2
 sed -i 's/%service_del_preun csync2.socket/systemctl --no-reload disable csync2.socket >\/dev\/null 2>\&1 || :\nsystemctl stop csync2.socket >\/dev\/null 2>\&1 || :/' ~/rpmbuild/SPECS/csync2.spec
 sed -i 's/%service_del_postun csync2.socket/systemctl daemon-reload >\/dev\/null 2>\&1 || :/' ~/rpmbuild/SPECS/csync2.spec
 
+# Remove existing systemd requirements
+sed -i '/Requires(post): systemd/d' ~/rpmbuild/SPECS/csync2.spec
+sed -i '/Requires(preun): systemd/d' ~/rpmbuild/SPECS/csync2.spec
+sed -i '/Requires(postun): systemd/d' ~/rpmbuild/SPECS/csync2.spec
+
+# Add systemd requirements once
+sed -i '/^Requires:/a Requires(post): systemd\nRequires(preun): systemd\nRequires(postun): systemd' ~/rpmbuild/SPECS/csync2.spec
+
 # Update BuildRequires for systemd
 sed -i 's/BuildRequires:  systemd/BuildRequires:  systemd-rpm-macros/' ~/rpmbuild/SPECS/csync2.spec
 

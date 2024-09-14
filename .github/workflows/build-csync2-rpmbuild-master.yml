@@ -65,7 +65,7 @@ jobs:
          
           # Check the installed RPM details
           echo
-          yum info csync2
+          yum -q info csync2
 
           # Check permissions and ownership
           echo
