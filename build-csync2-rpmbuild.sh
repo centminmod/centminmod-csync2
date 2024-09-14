@@ -31,6 +31,7 @@ dnf install --allowerasing -y \
   rpm-build \
   gcc \
   make \
+  cmake \
   tar \
   curl \
   gnupg2 \
