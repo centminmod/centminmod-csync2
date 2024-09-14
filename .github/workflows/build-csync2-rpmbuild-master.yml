@@ -10,6 +10,7 @@ on:
       - '.github/workflows/build-csync2-rpmbuild.yml'
       - '.github/workflows/build-csync2-master.yml'
       - '.github/workflows/build-csync2.yml'
+      - '.github/workflows/build-sqlite3-rpm.yml'
   pull_request:
     branches:
       - master
