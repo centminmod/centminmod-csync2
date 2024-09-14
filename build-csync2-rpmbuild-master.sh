@@ -189,8 +189,12 @@ sed -i '/Requires\(post\): systemd/d' ~/rpmbuild/SPECS/csync2.spec
 sed -i '/Requires\(preun\): systemd/d' ~/rpmbuild/SPECS/csync2.spec
 sed -i '/Requires\(postun\): systemd/d' ~/rpmbuild/SPECS/csync2.spec
 
+echo
+cat ~/rpmbuild/SPECS/csync2.spec
+echo
+
 # Add systemd requirements once
-sed -i '/^Requires:/a Requires(post): systemd\nRequires(preun): systemd\nRequires(postun): systemd' ~/rpmbuild/SPECS/csync2.spec
+sed -i '/Requires:       sqlite-libs/a Requires(post): systemd\nRequires(preun): systemd\nRequires(postun): systemd' ~/rpmbuild/SPECS/csync2.spec
 
 # Add new changelog entry
 sed -i '/^%changelog/a \* '"$(date +"%a %b %d %Y")"' George Liu <centminmod.com> - 2.1-1\n- Update for EL8/EL9 OSes\n' ~/rpmbuild/SPECS/csync2.spec
