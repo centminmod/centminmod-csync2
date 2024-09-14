@@ -4,6 +4,11 @@ on:
   push:
     branches:
       - master
+    paths-ignore:
+      - '.github/workflows/build-cmm-csync2-rpmbuild-master.yml'
+      - '.github/workflows/build-csync2-rpmbuild.yml'
+      - '.github/workflows/build-csync2-master.yml'
+      - '.github/workflows/build-csync2.yml'
   pull_request:
     branches:
       - master
