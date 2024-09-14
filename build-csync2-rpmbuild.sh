@@ -25,6 +25,7 @@ dnf module enable postgresql:${POSTGRESQL_VERSION} -y &&
 dnf install -y postgresql-server-devel
 
 # Install dependencies
+dnf groupinstall 'Development Tools' -y
 dnf install --allowerasing -y \
   libpq-devel \
   wget \
