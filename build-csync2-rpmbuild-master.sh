@@ -117,6 +117,9 @@ mkdir -p %{buildroot}%{_sysconfdir}/csync2' ~/rpmbuild/SPECS/csync2.spec
 sed -i '/%install/a \
 mkdir -p %{buildroot}%{_docdir}/csync2' ~/rpmbuild/SPECS/csync2.spec
 
+# Ensure all necessary directories are created
+sed -i '/%install/a mkdir -p %{buildroot}%{_localstatedir}/lib/csync2' ~/rpmbuild/SPECS/csync2.spec
+
 # Ensure the service management in pre/post install scripts if not already present
 if ! grep -q "%pre" ~/rpmbuild/SPECS/csync2.spec; then
     sed -i '/^%install/i \
@@ -148,6 +151,9 @@ sed -i '/%files/a \
 
 # Replace %makeinstall with %make_install (modernize)
 sed -i 's/%makeinstall/%make_install/' ~/rpmbuild/SPECS/csync2.spec
+
+# Update the %files section to correctly reference csync2.cfg
+sed -i 's|%config(noreplace) %{_sysconfdir}/csync2.cfg|%config(noreplace) %{_sysconfdir}/csync2/csync2.cfg|' ~/rpmbuild/SPECS/csync2.spec
 
 echo
 cat ~/rpmbuild/SPECS/csync2.spec
