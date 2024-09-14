@@ -1,0 +1,89 @@
+name: SQLite RPM Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        os: ['almalinux:9', 'almalinux:8']
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Set up AlmaLinux container and build SQLite using rpmbuild
+      run: |
+        mkdir -p ${{ github.workspace }}/rpms
+        docker pull ${{ matrix.os }}
+        docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace ${{ matrix.os }} /bin/bash -c "
+          if [[ '${{ matrix.os }}' == 'almalinux:8' ]]; then
+            DISTTAG='el8'
+          else
+            DISTTAG='el9'
+          fi
+          
+          # Copy build script into the container
+          cp /workspace/build-sqlite-rpmbuild.sh /tmp
+          chmod +x /tmp/build-sqlite-rpmbuild.sh
+
+          # Run build script
+          /tmp/build-sqlite-rpmbuild.sh $DISTTAG
+
+          # Copy the built RPMs to the mounted /workspace/rpms directory on the host
+          mkdir -p /workspace/rpms
+          cp /root/rpmbuild/RPMS/x86_64/*.rpm /workspace/rpms/
+          cp /root/rpmbuild/SRPMS/*.rpm /workspace/rpms/
+          
+          # List the RPMs in the /workspace/rpms directory
+          echo
+          ls -lah /workspace/rpms/
+
+          # Install the built RPM (non-debug version)
+          echo
+          yum localinstall -y /root/rpmbuild/RPMS/x86_64/sqlite-3.*.x86_64.rpm
+
+          # Check package files
+          echo
+          rpm -ql sqlite
+
+          # Changelog check
+          echo
+          rpm -q --changelog sqlite
+         
+          # Check the installed RPM details
+          echo
+          yum -q info sqlite
+
+          # Check sqlite3 version
+          echo
+          sqlite3 --version
+        "
+
+    - name: Debugging Show contents of /workspace/rpms
+      run: |
+        echo "Checking for RPMs in /workspace/rpms on host..."
+        ls -lah ${{ github.workspace }}/rpms/
+
+    - name: Set custom artifact name
+      run: |
+        if [[ ${{ matrix.os }} == 'almalinux:8' ]]; then
+          echo "ARTIFACT_NAME=sqlite-rpmbuild-rpm-almalinux-8" >> $GITHUB_ENV
+        else
+          echo "ARTIFACT_NAME=sqlite-rpmbuild-rpm-almalinux-9" >> $GITHUB_ENV
+        fi
+
+    - name: Upload RPM
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.ARTIFACT_NAME }}
+        path: ${{ github.workspace }}/rpms/*.rpm
+        if-no-files-found: warn
+        compression-level: 0
+        overwrite: false
