@@ -58,16 +58,7 @@ BuildRequires: tcl-devel
 BuildRequires: openssl-devel
 BuildRequires: libicu-devel
 BuildRequires: libedit-devel
-Requires: readline
-Requires: ncurses
-Requires: zlib
-Requires: openssl
-Requires: libicu
-Requires: libedit
-Provides: sqlite = %{version}-%{release}
-Provides: sqlite(x86-64) = %{version}-%{release}
-Provides: sqlite-libs = %{version}-%{release}
-Obsoletes: sqlite-libs < %{version}-%{release}
+Requires: sqlite-libs = %{version}-%{release}
 
 %description
 SQLite is a C library that implements an SQL database engine. A large
@@ -75,8 +66,25 @@ subset of SQL92 is supported. A complete database is stored in a
 single disk file. The API is designed for convenience and ease of use.
 Applications that link against SQLite can enjoy the power and
 flexibility of an SQL database without the administrative hassles of
-supporting a separate database server.  Version 2 and version 3 binaries
-are named to permit each to be installed on a single host
+supporting a separate database server.
+
+%package libs
+Summary: Shared library for SQLite
+Provides: sqlite-libs = %{version}-%{release}
+Provides: sqlite-libs(x86-64) = %{version}-%{release}
+Obsoletes: sqlite-libs < %{version}-%{release}
+
+%description libs
+This package contains the shared library for SQLite.
+
+%package devel
+Summary: Development files for SQLite
+Requires: sqlite-libs%{?_isa} = %{version}-%{release}
+Requires: pkgconfig
+
+%description devel
+The sqlite-devel package contains libraries and header files for
+developing applications that use SQLite.
 
 %prep
 %setup -q -n sqlite-autoconf-${SQLITE_DOWNLOAD_VER}
@@ -109,26 +117,18 @@ find \$RPM_BUILD_ROOT -name '*.la' -exec rm -f {} ';'
 %clean
 rm -rf \$RPM_BUILD_ROOT
 
-%post -p /sbin/ldconfig
+%post libs -p /sbin/ldconfig
 
-%postun -p /sbin/ldconfig
+%postun libs -p /sbin/ldconfig
 
 %files
 %defattr(-,root,root,-)
 %{_bindir}/*
-%{_libdir}/*.so.*
 %{_mandir}/man1/*
 
-%package devel
-Summary: Development files for SQLite
-Requires: %{name}%{?_isa} = %{version}-%{release}
-Requires: pkgconfig
-Provides: sqlite-devel = %{version}-%{release}
-Obsoletes: sqlite-devel < %{version}-%{release}
-
-%description devel
-The sqlite-devel package contains libraries and header files for
-developing applications that use SQLite.
+%files libs
+%defattr(-,root,root,-)
+%{_libdir}/*.so.*
 
 %files devel
 %defattr(-,root,root,-)

@@ -45,24 +45,36 @@ jobs:
           echo
           ls -lah /workspace/rpms/
 
-          # Install the built RPM (non-debug version)
+          # Install the built RPMs
           echo
-          yum localinstall -y /root/rpmbuild/RPMS/x86_64/sqlite-3.*.x86_64.rpm
-
-          # Check package files
+          yum localinstall -y /root/rpmbuild/RPMS/x86_64/sqlite-3.*.x86_64.rpm /root/rpmbuild/RPMS/x86_64/sqlite-libs-3.*.x86_64.rpm /root/rpmbuild/RPMS/x86_64/sqlite-devel-3.*.x86_64.rpm
+          # Check package files for each package
           echo
+          echo 'rpm -ql sqlite'
           rpm -ql sqlite
-
+          echo
+          echo 'rpm -ql sqlite-libs'
+          rpm -ql sqlite-libs
+          echo
+          echo 'rpm -ql sqlite-devel'
+          rpm -ql sqlite-devel
           # Changelog check
           echo
           rpm -q --changelog sqlite
          
-          # Check the installed RPM details
+          # Check the installed RPM details for each package
           echo
+          echo 'yum -q info sqlite'
           yum -q info sqlite
-
+          echo
+          echo 'yum -q info sqlite-libs'
+          yum -q info sqlite-libs
+          echo
+          echo 'yum -q info sqlite-devel'
+          yum -q info sqlite-devel
           # Check sqlite3 version
           echo
+          echo 'sqlite3 --version'
           sqlite3 --version
         "
 
