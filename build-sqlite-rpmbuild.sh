@@ -43,6 +43,8 @@ mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
 
 # Create the spec file
 cat << EOF > ~/rpmbuild/SPECS/sqlite.spec
+%define debug_package %{nil}
+
 Summary: SQLite is a self-contained, high-reliability, embedded, full-featured, public-domain, SQL database engine
 Name: sqlite
 Version: ${SQLITE_VER}
@@ -71,7 +73,8 @@ supporting a separate database server.
 %package libs
 Summary: Shared library for SQLite
 Provides: sqlite-libs = %{version}-%{release}
-Provides: sqlite-libs(x86-64) = %{version}-%{release}
+Provides: sqlite-libs%{?_isa} = %{version}-%{release}
+Provides: libsqlite3.so.0()(64bit)
 Obsoletes: sqlite-libs < %{version}-%{release}
 
 %description libs
@@ -145,7 +148,6 @@ rm -rf \$RPM_BUILD_ROOT
 - Automated build for SQLite ${SQLITE_VER}
 - Enabled FTS3, FTS4, FTS5, RTree, Thread-safe, Dynamic extensions, Readline, and Session
 - Added CFLAGS for additional features and optimizations
-- Compiled with -O3 and LTO for improved performance and reduced size
 EOF
 
 # Copy the source to rpmbuild/SOURCES
@@ -171,11 +173,19 @@ cp ~/rpmbuild/SRPMS/*.rpm /workspace/rpms/ || echo "No SRPM files found in ~/rpm
 echo "Contents of /workspace/rpms:"
 ls -lah /workspace/rpms/
 
+# Optional: Check contents of built RPMs
+for rpm in /workspace/rpms/*.rpm; do
+    echo "Contents of $rpm:"
+    rpm -qlp $rpm
+done
+
 # Optional: Compare sizes with system packages
 echo
 echo "Comparing sizes with system packages:"
 for pkg in sqlite sqlite-libs sqlite-devel; do
-  echo "${pkg}:"
-  rpm -q --queryformat "%{SIZE}\n" ${pkg}
-  rpm -q --queryformat "%{SIZE}\n" /workspace/rpms/${pkg}-${SQLITE_VER}-1.${DISTTAG}.x86_64.rpm
+    echo "${pkg}:"
+    rpm -q --queryformat "%{SIZE}\n" ${pkg} || echo "Not installed"
+    rpm -qp --queryformat "%{SIZE}\n" /workspace/rpms/${pkg}-${SQLITE_VER}-1.${DISTTAG}.x86_64.rpm || echo "Not found"
 done
+
+echo "Build script completed."
