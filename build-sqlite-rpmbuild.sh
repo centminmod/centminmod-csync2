@@ -145,7 +145,7 @@ rm -rf \$RPM_BUILD_ROOT
 %{_libdir}/pkgconfig/*.pc
 
 %changelog
-* $(date "+%a %b %d %Y") Build Script <build@script.local> - ${SQLITE_VER}-1
+* $(date "+%a %b %d %Y") George Liu <centminmod.com> - ${SQLITE_VER}-1
 - Automated build for SQLite ${SQLITE_VER}
 - Enabled FTS3, FTS4, FTS5, RTree, Thread-safe, Dynamic extensions, Readline, and Session
 - Added CFLAGS for additional features and optimizations
