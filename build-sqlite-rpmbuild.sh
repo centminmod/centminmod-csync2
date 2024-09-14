@@ -5,6 +5,7 @@ set -e
 # Set variables
 SQLITE_VER=3.46.1
 SQLITE_DOWNLOAD_VER=3460100
+CUSTOM_PREFIX="/opt/sqlite-custom"
 
 # Determine DISTTAG based on OS release
 if grep -q "release 8" /etc/redhat-release; then
@@ -42,16 +43,17 @@ tar -xzf "sqlite-${SQLITE_VER}.tar.gz"
 mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
 
 # Create the spec file
-cat << EOF > ~/rpmbuild/SPECS/sqlite.spec
+cat << EOF > ~/rpmbuild/SPECS/sqlite-custom.spec
 %define debug_package %{nil}
+%define _prefix ${CUSTOM_PREFIX}
 
 Summary: SQLite is a self-contained, high-reliability, embedded, full-featured, public-domain, SQL database engine
-Name: sqlite
+Name: sqlite-custom
 Version: ${SQLITE_VER}
 Release: 1%{?dist}
 License: Public Domain
 URL: https://www.sqlite.org/
-Source0: %{name}-%{version}.tar.gz
+Source0: sqlite-%{version}.tar.gz
 BuildRequires: gcc
 BuildRequires: readline-devel
 BuildRequires: ncurses-devel
@@ -60,7 +62,7 @@ BuildRequires: tcl-devel
 BuildRequires: openssl-devel
 BuildRequires: libicu-devel
 BuildRequires: libedit-devel
-Requires: sqlite-libs%{?_isa} = %{version}-%{release}
+Requires: %{name}-libs%{?_isa} = %{version}-%{release}
 
 %description
 SQLite is a C library that implements an SQL database engine. A large
@@ -72,23 +74,22 @@ supporting a separate database server.
 
 %package libs
 Summary: Shared library for SQLite
-Provides: sqlite-libs = %{version}-%{release}
-Provides: sqlite-libs%{?_isa} = %{version}-%{release}
+Provides: sqlite-custom-libs = %{version}-%{release}
+Provides: sqlite-custom-libs%{?_isa} = %{version}-%{release}
 Provides: libsqlite3.so.0()(64bit)
-Obsoletes: sqlite-libs < %{version}-%{release}
 
 %description libs
 This package contains the shared library for SQLite.
 
 %package devel
 Summary: Development files for SQLite
-Requires: sqlite-libs%{?_isa} = %{version}-%{release}
+Requires: %{name}-libs%{?_isa} = %{version}-%{release}
 Requires: pkgconfig
 
 %description devel
 This package contains the header files and development documentation
 for sqlite. If you like to develop programs using sqlite, you will need
-to install sqlite-devel.
+to install sqlite-custom-devel.
 
 %prep
 %setup -q -n sqlite-autoconf-${SQLITE_DOWNLOAD_VER}
@@ -125,7 +126,6 @@ find \$RPM_BUILD_ROOT -name '*.la' -exec rm -f {} ';'
 rm -rf \$RPM_BUILD_ROOT
 
 %post libs -p /sbin/ldconfig
-
 %postun libs -p /sbin/ldconfig
 
 %files
@@ -149,13 +149,14 @@ rm -rf \$RPM_BUILD_ROOT
 - Automated build for SQLite ${SQLITE_VER}
 - Enabled FTS3, FTS4, FTS5, RTree, Thread-safe, Dynamic extensions, Readline, and Session
 - Added CFLAGS for additional features and optimizations
+- Installed in custom prefix ${CUSTOM_PREFIX}
 EOF
 
 # Copy the source to rpmbuild/SOURCES
 cp "sqlite-${SQLITE_VER}.tar.gz" ~/rpmbuild/SOURCES/
 
 # Build the RPM
-rpmbuild -ba ~/rpmbuild/SPECS/sqlite.spec --define "dist .${DISTTAG}"
+rpmbuild -ba ~/rpmbuild/SPECS/sqlite-custom.spec --define "dist .${DISTTAG}"
 
 echo "RPMs built:"
 ls -lah ~/rpmbuild/RPMS/x86_64/
@@ -166,7 +167,7 @@ echo
 
 # Move the built RPMs and SRPMs to the workspace for GitHub Actions
 mkdir -p /workspace/rpms
-cp ~/rpmbuild/SPECS/sqlite.spec /workspace/rpms/
+cp ~/rpmbuild/SPECS/sqlite-custom.spec /workspace/rpms/
 cp ~/rpmbuild/RPMS/x86_64/*.rpm /workspace/rpms/ || echo "No RPM files found in ~/rpmbuild/RPMS/x86_64/"
 cp ~/rpmbuild/SRPMS/*.rpm /workspace/rpms/ || echo "No SRPM files found in ~/rpmbuild/SRPMS/"
 
@@ -186,7 +187,7 @@ echo "Comparing sizes with system packages:"
 for pkg in sqlite sqlite-libs sqlite-devel; do
     echo "${pkg}:"
     rpm -q --queryformat "%{SIZE}\n" ${pkg} || echo "Not installed"
-    rpm -qp --queryformat "%{SIZE}\n" /workspace/rpms/${pkg}-${SQLITE_VER}-1.${DISTTAG}.x86_64.rpm || echo "Not found"
+    rpm -qp --queryformat "%{SIZE}\n" /workspace/rpms/sqlite-custom*-${SQLITE_VER}-1.${DISTTAG}.x86_64.rpm || echo "Not found"
 done
 
 echo "Build script completed."

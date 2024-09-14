@@ -1,4 +1,4 @@
-name: SQLite RPM Build
+name: SQLite Custom RPM Build
 
 on:
   workflow_dispatch:
@@ -47,35 +47,35 @@ jobs:
 
           # Install the built RPMs
           echo
-          yum localinstall -y /root/rpmbuild/RPMS/x86_64/sqlite-3.*.x86_64.rpm /root/rpmbuild/RPMS/x86_64/sqlite-libs-3.*.x86_64.rpm /root/rpmbuild/RPMS/x86_64/sqlite-devel-3.*.x86_64.rpm
+          yum localinstall -y /workspace/rpms/sqlite-custom-*.x86_64.rpm /workspace/rpms/sqlite-custom-libs-*.x86_64.rpm /workspace/rpms/sqlite-custom-devel-*.x86_64.rpm
           # Check package files for each package
           echo
-          echo 'rpm -ql sqlite'
-          rpm -ql sqlite
+          echo 'rpm -ql sqlite-custom'
+          rpm -ql sqlite-custom
           echo
-          echo 'rpm -ql sqlite-libs'
-          rpm -ql sqlite-libs
+          echo 'rpm -ql sqlite-custom-libs'
+          rpm -ql sqlite-custom-libs
           echo
-          echo 'rpm -ql sqlite-devel'
-          rpm -ql sqlite-devel
+          echo 'rpm -ql sqlite-custom-devel'
+          rpm -ql sqlite-custom-devel
           # Changelog check
           echo
-          rpm -q --changelog sqlite
+          rpm -q --changelog sqlite-custom
          
           # Check the installed RPM details for each package
           echo
-          echo 'yum -q info sqlite'
-          yum -q info sqlite
+          echo 'rpm -qi sqlite-custom'
+          rpm -qi sqlite-custom
           echo
-          echo 'yum -q info sqlite-libs'
-          yum -q info sqlite-libs
+          echo 'rpm -qi sqlite-custom-libs'
+          rpm -qi sqlite-custom-libs
           echo
-          echo 'yum -q info sqlite-devel'
-          yum -q info sqlite-devel
+          echo 'rpm -qi sqlite-custom-devel'
+          rpm -qi sqlite-custom-devel
           # Check sqlite3 version
           echo
-          echo 'sqlite3 --version'
-          sqlite3 --version
+          echo '/opt/sqlite-custom/bin/sqlite3 --version'
+          /opt/sqlite-custom/bin/sqlite3 --version
         "
 
     - name: Debugging Show contents of /workspace/rpms
@@ -86,9 +86,9 @@ jobs:
     - name: Set custom artifact name
       run: |
         if [[ ${{ matrix.os }} == 'almalinux:8' ]]; then
-          echo "ARTIFACT_NAME=sqlite-rpmbuild-rpm-almalinux-8" >> $GITHUB_ENV
+          echo "ARTIFACT_NAME=sqlite-custom-rpmbuild-rpm-almalinux-8" >> $GITHUB_ENV
         else
-          echo "ARTIFACT_NAME=sqlite-rpmbuild-rpm-almalinux-9" >> $GITHUB_ENV
+          echo "ARTIFACT_NAME=sqlite-custom-rpmbuild-rpm-almalinux-9" >> $GITHUB_ENV
         fi
 
     - name: Upload RPM
