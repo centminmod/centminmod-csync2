@@ -72,13 +72,14 @@ jobs:
           ls -l /usr/sbin/csync2 || echo 'csync2 binary not found in /usr/sbin'
 
           echo
+          echo 'Checking for lock file:'
+          ls -l /etc/csync2/csync2.lock || echo 'Lock file does not exist'
+
+          echo
           echo 'ldd /usr/sbin/csync2'
           ldd /usr/sbin/csync2
           
           # Run the csync2 command to verify it works
-          echo
-          echo '/usr/sbin/csync2 -v --help'
-          /usr/sbin/csync2 -v --help || true
           echo
           echo '/usr/sbin/csync2 --help'
           /usr/sbin/csync2 --help || true
