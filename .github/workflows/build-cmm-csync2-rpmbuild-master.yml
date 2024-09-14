@@ -1,0 +1,112 @@
+name: Build Csync2 RPM with rpmbuild for MariaDB - master 2.1
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        os: ['almalinux:9', 'almalinux:8']
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Set up AlmaLinux container and build Csync2 using rpmbuild
+      run: |
+        mkdir -p ${{ github.workspace }}/rpms
+        docker pull ${{ matrix.os }}
+        docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace ${{ matrix.os }} /bin/bash -c "
+          if [[ '${{ matrix.os }}' == 'almalinux:8' ]]; then
+            DISTTAG='el8'
+          else
+            DISTTAG='el9'
+          fi
+          
+          # Copy build script into the container
+          cp /workspace/build-cmm-csync2-rpmbuild-master.sh /tmp
+          chmod +x /tmp/build-cmm-csync2-rpmbuild-master.sh
+
+          # Run build script
+          /tmp/build-cmm-csync2-rpmbuild-master.sh $DISTTAG
+
+          # Copy the built RPMs to the mounted /workspace/rpms directory on the host
+          mkdir -p /workspace/rpms
+          cp /root/rpmbuild/RPMS/x86_64/*.rpm /workspace/rpms/
+          cp /root/rpmbuild/SRPMS/*.rpm /workspace/rpms/
+          
+          # List the RPMs in the /workspace/rpms directory
+          echo
+          ls -lah /workspace/rpms/
+
+          # Install the built RPM (non-debug version)
+          echo
+          yum localinstall -y /root/rpmbuild/RPMS/x86_64/csync2-2.*.x86_64.rpm
+
+          # Check package files
+          echo
+          rpm -ql csync2
+
+          # Changelog check
+          echo
+          rpm -q --changelog csync2
+         
+          # Check the installed RPM details
+          echo
+          yum -q info csync2
+
+          # Check permissions and ownership
+          echo
+          echo 'ls -l /etc/csync2'
+          ls -l /etc/csync2 || echo '/etc/csync2 does not exist'
+          echo
+          echo 'ls -l /usr/sbin/csync2'
+          ls -l /usr/sbin/csync2 || echo 'csync2 binary not found in /usr/sbin'
+
+          echo
+          echo 'Checking for lock file:'
+          ls -l /etc/csync2/csync2.lock || echo 'Lock file does not exist'
+
+          echo
+          echo 'ldd /usr/sbin/csync2'
+          ldd /usr/sbin/csync2
+          
+          # Run the csync2 command to verify it works
+          echo
+          echo '/usr/sbin/csync2 -v'
+          /usr/sbin/csync2 -v || true
+        "
+
+    - name: Debugging Show contents of /workspace/rpms
+      run: |
+        echo "Checking for RPMs in /workspace/rpms on host..."
+        ls -lah ${{ github.workspace }}/rpms/
+
+    - name: Set custom artifact name
+      run: |
+        if [[ ${{ matrix.os }} == 'almalinux:8' ]]; then
+          echo "ARTIFACT_NAME=csync2-rpmbuild-rpm-almalinux-8" >> $GITHUB_ENV
+        else
+          echo "ARTIFACT_NAME=csync2-rpmbuild-rpm-almalinux-9" >> $GITHUB_ENV
+        fi
+
+    - name: Upload RPM
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.ARTIFACT_NAME }}
+        path: ${{ github.workspace }}/rpms/*.rpm
+        if-no-files-found: warn
+        compression-level: 0
+        overwrite: false
