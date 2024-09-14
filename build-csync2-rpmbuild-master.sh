@@ -101,6 +101,13 @@ sed -i '/%doc %{_docdir}\/csync2\/csync2.adoc/a %doc %{_docdir}/csync2/csync2-qu
 # Modify the %configure line to disable SQLite 2 and enable SQLite 3
 sed -i 's|%configure .*|%configure --enable-mysql --enable-postgres --disable-sqlite --enable-sqlite3 \\|' ~/rpmbuild/SPECS/csync2.spec
 
+# Ensure documentation files are installed
+sed -i '/%install/a \
+install -m 644 AUTHORS %{buildroot}%{_docdir}/csync2/AUTHORS\n\
+install -m 644 AUTHORS.adoc %{buildroot}%{_docdir}/csync2/AUTHORS.adoc\n\
+install -m 644 README %{buildroot}%{_docdir}/csync2/README\n\
+install -m 644 README.adoc %{buildroot}%{_docdir}/csync2/README.adoc' ~/rpmbuild/SPECS/csync2.spec
+
 # Add the csync2.socket systemd service management
 sed -i '/%install/a \
 install -D -m 644 csync2.socket %{buildroot}%{_unitdir}/csync2.socket' ~/rpmbuild/SPECS/csync2.spec
@@ -145,6 +152,10 @@ if ! grep -q "%postun" ~/rpmbuild/SPECS/csync2.spec; then
 %service_del_postun csync2.socket' ~/rpmbuild/SPECS/csync2.spec
 fi
 
+# Add a wildcard for any other documentation files
+sed -i '/%files/a \
+%doc %{_docdir}/csync2/*' ~/rpmbuild/SPECS/csync2.spec
+
 # Ensure the socket file is included in the %files section
 sed -i '/%files/a \
 %{_unitdir}/csync2.socket' ~/rpmbuild/SPECS/csync2.spec
@@ -154,7 +165,9 @@ sed -i '/%files/a \
 %doc %{_docdir}/csync2/AUTHORS.adoc\n\
 %doc %{_docdir}/csync2/COPYING\n\
 %doc %{_docdir}/csync2/ChangeLog\n\
-%doc %{_docdir}/csync2/README.adoc' ~/rpmbuild/SPECS/csync2.spec
+%doc %{_docdir}/csync2/README.adoc\n\
+%doc %{_docdir}/csync2/AUTHORS\n\
+%doc %{_docdir}/csync2/README' ~/rpmbuild/SPECS/csync2.spec
 
 # Replace %makeinstall with %make_install (modernize)
 sed -i 's/%makeinstall/%make_install/' ~/rpmbuild/SPECS/csync2.spec
