@@ -1,12 +1,6 @@
 name: Build Csync2 RPM with rpmbuild for MariaDB - master 2.1
 
 on:
-  push:
-    branches:
-      - master
-  pull_request:
-    branches:
-      - master
   workflow_dispatch:
 
 jobs:
