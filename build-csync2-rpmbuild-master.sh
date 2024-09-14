@@ -90,9 +90,9 @@ sed -i 's/sqlite3/sqlite/g' ~/rpmbuild/SPECS/csync2.spec
 sed -i '/Requires:.*sqlite/a Requires:       sqlite-libs' ~/rpmbuild/SPECS/csync2.spec
 
 # Modify the spec file to remove references to the missing files
-sed -i '/ChangeLog/d' ~/rpmbuild/SPECS/csync2.spec
-sed -i '/README/d' ~/rpmbuild/SPECS/csync2.spec
-sed -i '/AUTHORS/d' ~/rpmbuild/SPECS/csync2.spec
+# sed -i '/ChangeLog/d' ~/rpmbuild/SPECS/csync2.spec
+# sed -i '/README/d' ~/rpmbuild/SPECS/csync2.spec
+# sed -i '/AUTHORS/d' ~/rpmbuild/SPECS/csync2.spec
 sed -i '/xinetd.d\/csync2/d' ~/rpmbuild/SPECS/csync2.spec
 
 # Add csync2-quickstart.adoc to %files section
@@ -148,6 +148,13 @@ fi
 # Ensure the socket file is included in the %files section
 sed -i '/%files/a \
 %{_unitdir}/csync2.socket' ~/rpmbuild/SPECS/csync2.spec
+
+# Add documentation files to the %files section
+sed -i '/%files/a \
+%doc %{_docdir}/csync2/AUTHORS.adoc\n\
+%doc %{_docdir}/csync2/COPYING\n\
+%doc %{_docdir}/csync2/ChangeLog\n\
+%doc %{_docdir}/csync2/README.adoc' ~/rpmbuild/SPECS/csync2.spec
 
 # Replace %makeinstall with %make_install (modernize)
 sed -i 's/%makeinstall/%make_install/' ~/rpmbuild/SPECS/csync2.spec
