@@ -97,11 +97,10 @@ BuildRequires:  hostname
 # openssl required at build time due to rpmlint checks which run postinstall script which uses openssl
 BuildRequires:  openssl
 BuildRequires:  pkgconfig
-BuildRequires:  sqlite-devel
-Requires:       sqlite-libs
+BuildRequires:  sqlite-custom-devel
+Requires:       sqlite-custom-libs
 Requires:       openssl
-Requires:       sqlite
-Requires:       sqlite-libs
+Requires:       sqlite-custom
 Requires(post): systemd
 Requires(preun): systemd
 Requires(postun): systemd
@@ -122,7 +121,7 @@ It is expedient for HA-clusters, HPC-clusters, COWs and server farms.
 %{?suse_update_config:%{suse_update_config}}
 
 %build
-export CPPFLAGS="-I/usr/include"
+export CPPFLAGS="-I/opt/custom-sqlite/include -I/usr/include"
 export RPM_OPT_FLAGS="\$RPM_OPT_FLAGS -Wno-format-truncation -Wno-misleading-indentation"
 export CFLAGS="\$RPM_OPT_FLAGS -I/usr/kerberos/include"
 
