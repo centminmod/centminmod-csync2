@@ -212,7 +212,7 @@ sed -i "s/^Version:.*/Version: ${CSYNC2_VER}/" ~/rpmbuild/SPECS/csync2.spec
 cp "../csync2-${CSYNC2_VER}.tar.gz" ~/rpmbuild/SOURCES/
 
 # Add new changelog entry
-sed -i '/^%changelog/a \* '"$(date +"%a %b %d %Y")"' George Liu <centminmod.com> - "${CSYNC2_VER}"-1\n- Update for EL8/EL9 OSes\n' ~/rpmbuild/SPECS/csync2.spec
+sed -i '/^%changelog/a \* '"$(date +"%a %b %d %Y")"' George Liu <centminmod.com> - '"${CSYNC2_VER}"'-1\n- Update for EL8/EL9 OSes\n' ~/rpmbuild/SPECS/csync2.spec
 
 echo
 cat ~/rpmbuild/SPECS/csync2.spec
