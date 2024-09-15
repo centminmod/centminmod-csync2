@@ -64,6 +64,46 @@ Description  : Csync2 is a cluster synchronization tool. It can be used to keep 
 -rw-r--r-- 1 root root  86K Sep 15 17:52 csync2-debugsource-2.1.1-1.el9.x86_64.rpm
 -rw-r--r-- 1 root root 4.2K Sep 15 17:52 csync2.spec
 ```
+```
+yum -y install csync2-2.1.1-1.el9.x86_64.rpm
+Last metadata expiration check: 0:16:04 ago on Sun Sep 15 21:14:14 2024.
+Dependencies resolved.
+=========================================================================================================
+ Package                Architecture         Version                    Repository                  Size
+=========================================================================================================
+Installing:
+ csync2                 x86_64               2.1.1-1.el9                @commandline                95 k
+Installing dependencies:
+ librsync               x86_64               2.3.4-1.el9                epel                        57 k
+
+Transaction Summary
+=========================================================================================================
+Install  2 Packages
+
+Total size: 152 k
+Total download size: 57 k
+Installed size: 338 k
+Downloading Packages:
+librsync-2.3.4-1.el9.x86_64.rpm                                          892 kB/s |  57 kB     00:00    
+---------------------------------------------------------------------------------------------------------
+Total                                                                    136 kB/s |  57 kB     00:00     
+Running transaction check
+Transaction check succeeded.
+Running transaction test
+Transaction test succeeded.
+Running transaction
+  Preparing        :                                                                                 1/1 
+  Installing       : librsync-2.3.4-1.el9.x86_64                                                     1/2 
+  Installing       : csync2-2.1.1-1.el9.x86_64                                                       2/2 
+  Running scriptlet: csync2-2.1.1-1.el9.x86_64                                                       2/2 
+  Verifying        : librsync-2.3.4-1.el9.x86_64                                                     1/2 
+  Verifying        : csync2-2.1.1-1.el9.x86_64                                                       2/2 
+
+Installed:
+  csync2-2.1.1-1.el9.x86_64                          librsync-2.3.4-1.el9.x86_64                         
+
+Complete!
+```
 
 csync2 2.1.0 EL8
 

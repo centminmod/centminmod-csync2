@@ -56,6 +56,7 @@ dnf install --allowerasing -y \
   libpq-devel \
   wget \
   binutils \
+  iproute \
   rpm-build \
   gcc \
   make \

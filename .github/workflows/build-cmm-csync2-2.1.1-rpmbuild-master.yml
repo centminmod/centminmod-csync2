@@ -49,6 +49,20 @@ jobs:
           echo
           yum localinstall -y /root/rpmbuild/RPMS/x86_64/csync2-2.*.x86_64.rpm
 
+           # Start csync2
+          echo
+          systemctl start csync2.socket || true
+          echo
+          systemctl status csync2.socket --no-pager || true | tee /workspace/csync2-socket-status.log
+
+          # Check csync2 socket listen port
+          echo
+          ss -tlnp | grep 30865 || true | tee /workspace/csync2-socket-ss-status.log
+
+          # Check csync2 journalctl logs
+          echo
+          journalctl -u csync2.socket -u "csync2@*" --no-pager || true | tee /workspace/csync2-socket-journalctl.log
+
           # Check package files
           echo
           rpm -ql csync2 | tee /workspace/csync2-qpl-output.log
@@ -82,6 +96,21 @@ jobs:
           echo '/usr/sbin/csync2 -v'
           /usr/sbin/csync2 -v || true
         "
+
+    - name: Display csync2 socket status
+      run: |
+        echo "Displaying csync2 socket status:"
+        cat ${{ github.workspace }}/csync2-socket-status.log
+
+    - name: Display csync2 ss port check
+      run: |
+        echo "Displaying csync2 ss port check:"
+        cat ${{ github.workspace }}/csync2-socket-ss-status.log
+
+    - name: Display csync2 journalctl log
+      run: |
+        echo "Displaying csync2 journalctl log:"
+        cat ${{ github.workspace }}/csync2-socket-journalctl.log
 
     - name: Display csync2 ldd info
       run: |
