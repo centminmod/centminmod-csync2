@@ -29,6 +29,10 @@ jobs:
             DISTTAG='el9'
           fi
 
+          # Copy sqlite-benchmark.py
+          cp /workspace/scripts/sqlite-benchmark.py /tmp
+          chmod +x /tmp/sqlite-benchmark.py
+
           # Copy build script into the container
           cp /workspace/build-sqlite-rpmbuild.sh /tmp
           chmod +x /tmp/build-sqlite-rpmbuild.sh
@@ -76,6 +80,11 @@ jobs:
           echo
           echo '/opt/sqlite-custom/bin/sqlite3 --version'
           /opt/sqlite-custom/bin/sqlite3 --version
+
+          # run sqlite benchmarks
+          echo
+          /tmp/sqlite-benchmark.py
+          echo
           
           # Copy build script into the container
           cp /workspace/build-cmm-csync2-sqlite-rpm.sh /tmp
