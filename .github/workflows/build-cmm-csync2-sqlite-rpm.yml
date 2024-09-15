@@ -86,8 +86,8 @@ jobs:
 
           # Copy the built RPMs to the mounted /workspace/rpms directory on the host
           mkdir -p /workspace/rpms
-          cp /root/rpmbuild/RPMS/x86_64/*.rpm /workspace/rpms/
-          cp /root/rpmbuild/SRPMS/*.rpm /workspace/rpms/
+          \cp -f /root/rpmbuild/RPMS/x86_64/*.rpm /workspace/rpms/
+          \cp -f /root/rpmbuild/SRPMS/*.rpm /workspace/rpms/
           
           # List the RPMs in the /workspace/rpms directory
           echo
@@ -139,9 +139,9 @@ jobs:
     - name: Set custom artifact name
       run: |
         if [[ ${{ matrix.os }} == 'almalinux:8' ]]; then
-          echo "ARTIFACT_NAME=csync2-rpmbuild-rpm-almalinux-8" >> $GITHUB_ENV
+          echo "ARTIFACT_NAME=csync2-sqlite-rpmbuild-rpm-almalinux-8" >> $GITHUB_ENV
         else
-          echo "ARTIFACT_NAME=csync2-rpmbuild-rpm-almalinux-9" >> $GITHUB_ENV
+          echo "ARTIFACT_NAME=csync2-sqlite-rpmbuild-rpm-almalinux-9" >> $GITHUB_ENV
         fi
 
     - name: Upload RPM
