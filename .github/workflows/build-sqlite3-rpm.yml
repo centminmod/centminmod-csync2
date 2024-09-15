@@ -28,6 +28,10 @@ jobs:
           else
             DISTTAG='el9'
           fi
+
+          # Copy sqlite-benchmark.py
+          cp /workspace/scripts/sqlite-benchmark.py /tmp
+          chmod +x /tmp/sqlite-benchmark.py
           
           # Copy build script into the container
           cp /workspace/build-sqlite-rpmbuild.sh /tmp
@@ -75,8 +79,23 @@ jobs:
           # Check sqlite3 version
           echo
           echo '/opt/sqlite-custom/bin/sqlite3 --version'
-          /opt/sqlite-custom/bin/sqlite3 --version
+          /opt/sqlite-custom/bin/sqlite3 --version | tee /workspace/sqlite-version-output.log
+
+          # run sqlite benchmarks
+          echo
+          /tmp/sqlite-benchmark.py | tee /workspace/sqlite-benchmark-output.log
+          echo
         "
+
+    - name: Display SQLite Version
+      run: |
+        echo "Displaying SQLite Version:"
+        cat ${{ github.workspace }}/sqlite-version-output.log
+
+    - name: Display SQLite Benchmark results
+      run: |
+        echo "Displaying SQLite Benchmark Results:"
+        cat ${{ github.workspace }}/sqlite-benchmark-output.log
 
     - name: Debugging Show contents of /workspace/rpms
       run: |

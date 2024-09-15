@@ -79,11 +79,11 @@ jobs:
           # Check sqlite3 version
           echo
           echo '/opt/sqlite-custom/bin/sqlite3 --version'
-          /opt/sqlite-custom/bin/sqlite3 --version
+          /opt/sqlite-custom/bin/sqlite3 --version | tee /workspace/sqlite-version-output.log
 
           # run sqlite benchmarks
           echo
-          /tmp/sqlite-benchmark.py
+          /tmp/sqlite-benchmark.py | tee /workspace/sqlite-benchmark-output.log
           echo
           
           # Copy build script into the container
@@ -108,15 +108,15 @@ jobs:
 
           # Check package files
           echo
-          rpm -ql csync2
+          rpm -ql csync2 | tee /workspace/csync2-qpl-output.log
 
           # Changelog check
           echo
-          rpm -q --changelog csync2
+          rpm -q --changelog csync2 | tee /workspace/csync2-changelog-output.log
          
           # Check the installed RPM details
           echo
-          yum -q info csync2
+          yum -q info csync2 | tee /workspace/csync2-yuminfo-output.log
 
           # Check permissions and ownership
           echo
@@ -132,7 +132,7 @@ jobs:
 
           echo
           echo 'ldd /usr/sbin/csync2'
-          ldd /usr/sbin/csync2 || true
+          ldd /usr/sbin/csync2 | tee /workspace/csync2-ldd-output.log || true
           
           # Run the csync2 command to verify it works
           echo
@@ -147,6 +147,36 @@ jobs:
           echo 'readelf -d /usr/sbin/csync2 | grep PATH'
           readelf -d /usr/sbin/csync2 | grep PATH
         "
+
+    - name: Display SQLite Version
+      run: |
+        echo "Displaying SQLite Version:"
+        cat ${{ github.workspace }}/sqlite-version-output.log
+
+    - name: Display SQLite Benchmark results
+      run: |
+        echo "Displaying SQLite Benchmark Results:"
+        cat ${{ github.workspace }}/sqlite-benchmark-output.log
+
+    - name: Display csync2 ldd info
+      run: |
+        echo "Displaying csync2 ldd info:"
+        cat ${{ github.workspace }}/csync2-ldd-output.log
+
+    - name: Display csync2 qpl info
+      run: |
+        echo "Displaying csync2 qpl info:"
+        cat ${{ github.workspace }}/csync2-qpl-output.log
+
+    - name: Display csync2 changelog info
+      run: |
+        echo "Displaying csync2 changelog info:"
+        cat ${{ github.workspace }}/csync2-changelog-output.log
+
+    - name: Display csync2 yum info
+      run: |
+        echo "Displaying csync2 yum info:"
+        cat ${{ github.workspace }}/csync2-yuminfo-output.log
 
     - name: Debugging Show contents of /workspace/rpms
       run: |
