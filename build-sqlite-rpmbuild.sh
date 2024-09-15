@@ -11,9 +11,14 @@ CUSTOM_PREFIX="/opt/sqlite-custom"
 if grep -q "release 8" /etc/redhat-release; then
     DISTTAG='el8'
     CRB_REPO="powertools"
+    dnf module enable python39 -y
+    dnf install python39 python39-devel -y
+    alternatives --set python /usr/bin/python3.9
+    alternatives --set python3 /usr/bin/python3.9
 elif grep -q "release 9" /etc/redhat-release; then
     DISTTAG='el9'
     CRB_REPO="crb"
+    dnf install python3 python3-devel -y
 fi
 
 # Enable repositories: CRB and EPEL
@@ -23,6 +28,7 @@ dnf config-manager --set-enabled ${CRB_REPO}
 # Install dependencies
 dnf groupinstall 'Development Tools' -y
 dnf install -y \
+  sqlite \
   wget \
   rpm-build \
   binutils \
