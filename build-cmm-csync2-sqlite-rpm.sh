@@ -125,6 +125,11 @@ It is expedient for HA-clusters, HPC-clusters, COWs and server farms.
 export CPPFLAGS="-I/usr/include"
 export RPM_OPT_FLAGS="\$RPM_OPT_FLAGS -Wno-format-truncation -Wno-misleading-indentation"
 export CFLAGS="\$RPM_OPT_FLAGS -I/usr/kerberos/include"
+
+export PKG_CONFIG_PATH="/opt/sqlite-custom/lib/pkgconfig:$PKG_CONFIG_PATH"
+export CFLAGS="-I/opt/sqlite-custom/include $CFLAGS"
+export LDFLAGS="-L/opt/sqlite-custom/lib -Wl,-rpath,/opt/sqlite-custom/lib $LDFLAGS"
+
 if ! [ -f configure ]; then ./autogen.sh; fi
 %configure --enable-systemd --enable-mysql --enable-postgres --disable-sqlite --enable-sqlite3 \
   --sysconfdir=%{_sysconfdir}/csync2 --docdir=%{_docdir}/%{name}
