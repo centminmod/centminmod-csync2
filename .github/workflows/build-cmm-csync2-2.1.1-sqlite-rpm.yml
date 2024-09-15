@@ -48,7 +48,7 @@ jobs:
                   kmod \
                   procps-ng \
                   sudo \
-                  udev
+                  udev --allowerasing
 
           systemctl unmask \
                   systemd-remount-fs.service \
