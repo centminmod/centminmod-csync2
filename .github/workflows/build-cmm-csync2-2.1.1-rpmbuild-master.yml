@@ -38,6 +38,8 @@ jobs:
                   initscripts \
                   systemd-sysv \
                   systemd-devel \
+                  hostname \
+                  systemd \
                   dos2unix \
                   curl \
                   python3 \
