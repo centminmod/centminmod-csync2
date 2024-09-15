@@ -63,7 +63,7 @@ wget "https://github.com/centminmod/csync2/archive/refs/heads/2.1.tar.gz" -O "cs
 tar -xzf "csync2-${CSYNC2_VER}.tar.gz"
 
 # Rename the extracted directory to match the spec file's expectation
-mv csync2-master csync2-${CSYNC2_VER}
+# mv csync2-master csync2-${CSYNC2_VER}
 cd "csync2-${CSYNC2_VER}"
 
 # Prepare for building the RPM
@@ -118,7 +118,7 @@ much more than just 2 hosts, handle file deletions and can detect conflicts.
 It is expedient for HA-clusters, HPC-clusters, COWs and server farms.
 
 %prep
-%setup -n csync2-master
+%setup -n csync2-%{version}
 %{?suse_update_config:%{suse_update_config}}
 
 %build
