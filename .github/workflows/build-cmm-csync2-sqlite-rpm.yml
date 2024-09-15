@@ -1,20 +1,6 @@
-name: rpmbuild Csync2 2.1 RPM Master + MariaDB
+name: CMM rpmbuild Csync2 2.1 + SQLite RPM
 
 on:
-  push:
-    branches:
-      - master
-    paths-ignore:
-      - '.github/workflows/build-cmm-csync2-rpmbuild-master-sqlite-only.yml'
-      - '.github/workflows/build-cmm-csync2-rpmbuild-master.yml'
-      - '.github/workflows/build-csync2-rpmbuild.yml'
-      - '.github/workflows/build-csync2-master.yml'
-      - '.github/workflows/build-csync2.yml'
-      - '.github/workflows/build-sqlite3-rpm.yml'
-      - '.github/workflows/build-cmm-csync2-sqlite-rpm.yml'
-  pull_request:
-    branches:
-      - master
   workflow_dispatch:
 
 jobs:
@@ -32,7 +18,7 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
-    - name: Set up AlmaLinux container and build Csync2 using rpmbuild
+    - name: Set up AlmaLinux container and build Csync2 + SQLite using rpmbuild
       run: |
         mkdir -p ${{ github.workspace }}/rpms
         docker pull ${{ matrix.os }}
@@ -42,13 +28,61 @@ jobs:
           else
             DISTTAG='el9'
           fi
-          
+
           # Copy build script into the container
-          cp /workspace/build-csync2-rpmbuild-master.sh /tmp
-          chmod +x /tmp/build-csync2-rpmbuild-master.sh
+          cp /workspace/build-sqlite-rpmbuild.sh /tmp
+          chmod +x /tmp/build-sqlite-rpmbuild.sh
 
           # Run build script
-          /tmp/build-csync2-rpmbuild-master.sh $DISTTAG
+          /tmp/build-sqlite-rpmbuild.sh $DISTTAG
+
+          # Copy the built RPMs to the mounted /workspace/rpms directory on the host
+          mkdir -p /workspace/rpms
+          cp /root/rpmbuild/RPMS/x86_64/*.rpm /workspace/rpms/
+          cp /root/rpmbuild/SRPMS/*.rpm /workspace/rpms/
+          
+          # List the RPMs in the /workspace/rpms directory
+          echo
+          ls -lah /workspace/rpms/
+
+          # Install the built RPMs
+          echo
+          yum localinstall -y /workspace/rpms/sqlite-custom-*.x86_64.rpm /workspace/rpms/sqlite-custom-libs-*.x86_64.rpm /workspace/rpms/sqlite-custom-devel-*.x86_64.rpm
+          # Check package files for each package
+          echo
+          echo 'rpm -ql sqlite-custom'
+          rpm -ql sqlite-custom
+          echo
+          echo 'rpm -ql sqlite-custom-libs'
+          rpm -ql sqlite-custom-libs
+          echo
+          echo 'rpm -ql sqlite-custom-devel'
+          rpm -ql sqlite-custom-devel
+          # Changelog check
+          echo
+          rpm -q --changelog sqlite-custom
+         
+          # Check the installed RPM details for each package
+          echo
+          echo 'rpm -qi sqlite-custom'
+          rpm -qi sqlite-custom
+          echo
+          echo 'rpm -qi sqlite-custom-libs'
+          rpm -qi sqlite-custom-libs
+          echo
+          echo 'rpm -qi sqlite-custom-devel'
+          rpm -qi sqlite-custom-devel
+          # Check sqlite3 version
+          echo
+          echo '/opt/sqlite-custom/bin/sqlite3 --version'
+          /opt/sqlite-custom/bin/sqlite3 --version
+          
+          # Copy build script into the container
+          cp /workspace/build-cmm-csync2-sqlite-rpm.sh /tmp
+          chmod +x /tmp/build-cmm-csync2-sqlite-rpm.sh
+
+          # Run build script
+          /tmp/build-cmm-csync2-sqlite-rpm.sh $DISTTAG
 
           # Copy the built RPMs to the mounted /workspace/rpms directory on the host
           mkdir -p /workspace/rpms
