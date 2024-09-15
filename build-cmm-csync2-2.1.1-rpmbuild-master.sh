@@ -10,13 +10,38 @@ if grep -q "release 8" /etc/redhat-release; then
     DISTTAG='el8'
     POSTGRESQL_VERSION=15
     CRB_REPO="powertools"
+# MariaDB instead of Oracle MySQL
+cat > /etc/yum.repos.d/mariadb.repo <<EOF
+[mariadb]
+name = MariaDB
+baseurl = https://yum.mariadb.org/10.5/rhel8-amd64
+module_hotfixes=1
+gpgkey=https://yum.mariadb.org/RPM-GPG-KEY-MariaDB
+gpgcheck=1
+exclude=MariaDB-Galera-server
+EOF
+  rpm --import https://supplychain.mariadb.com/MariaDB-Server-GPG-KEY
+  yum -q -y module disable mariadb mysql
 elif grep -q "release 9" /etc/redhat-release; then
     DISTTAG='el9'
     POSTGRESQL_VERSION=15
     CRB_REPO="crb"
+# MariaDB instead of Oracle MySQL
+cat > /etc/yum.repos.d/mariadb.repo <<EOF
+[mariadb]
+name = MariaDB
+baseurl = https://yum.mariadb.org/10.5/rhel9-amd64
+module_hotfixes=1
+gpgkey=https://yum.mariadb.org/RPM-GPG-KEY-MariaDB
+gpgcheck=1
+exclude=MariaDB-Galera-server
+EOF
+  rpm --import https://supplychain.mariadb.com/MariaDB-Server-GPG-KEY
+  yum -q -y module disable mariadb mysql
 fi
 
 # Enable repositories: CRB and EPEL
+dnf clean all
 dnf install -y epel-release
 dnf config-manager --set-enabled ${CRB_REPO}
 
@@ -54,7 +79,8 @@ dnf install --allowerasing -y \
   libgcrypt-devel \
   gnutls-devel \
   librsync-devel \
-  mysql-devel \
+  #mysql-devel \
+  MariaDB-devel \
   texlive \
   texlive-latex
 
