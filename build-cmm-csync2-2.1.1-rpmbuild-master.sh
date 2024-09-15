@@ -59,7 +59,7 @@ dnf install --allowerasing -y \
   texlive-latex
 
 # Download the master branch source from GitHub
-wget "https://github.com/centminmod/csync2/archive/refs/heads/master.tar.gz" -O "csync2-${CSYNC2_VER}.tar.gz"
+wget "https://github.com/centminmod/csync2/archive/refs/heads/2.1.tar.gz" -O "csync2-${CSYNC2_VER}.tar.gz"
 tar -xzf "csync2-${CSYNC2_VER}.tar.gz"
 
 # Rename the extracted directory to match the spec file's expectation
