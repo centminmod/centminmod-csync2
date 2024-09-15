@@ -3,7 +3,7 @@
 set -e
 
 # Set variables
-CSYNC2_VER=2.1
+CSYNC2_VER=2.1.1
 
 # Determine DISTTAG based on OS release
 if grep -q "release 8" /etc/redhat-release; then
@@ -59,7 +59,7 @@ dnf install --allowerasing -y \
   texlive-latex
 
 # Download the master branch source from GitHub
-wget "https://github.com/centminmod/csync2/archive/refs/heads/master.tar.gz" -O "csync2-${CSYNC2_VER}.tar.gz"
+wget "https://github.com/centminmod/csync2/archive/refs/heads/2.1.tar.gz" -O "csync2-${CSYNC2_VER}.tar.gz"
 tar -xzf "csync2-${CSYNC2_VER}.tar.gz"
 
 # Rename the extracted directory to match the spec file's expectation
@@ -83,7 +83,7 @@ License:        GPL-2.0-or-later
 Group:          Productivity/Clustering/HA
 
 Name:           csync2
-Version: 2.1
+Version: 2.1.1
 Release: 1%{?dist}
 URL:            https://github.com/centminmod/csync2#readme
 Source0: %{name}-%{version}.tar.gz
