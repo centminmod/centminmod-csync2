@@ -1,4 +1,4 @@
-name: CMM rpmbuild Csync2 2.1 + SQLite RPM
+name: CMM rpmbuild Csync2 2.1.1 + SQLite RPM
 
 on:
   workflow_dispatch:
@@ -156,9 +156,9 @@ jobs:
     - name: Set custom artifact name
       run: |
         if [[ ${{ matrix.os }} == 'almalinux:8' ]]; then
-          echo "ARTIFACT_NAME=csync2-sqlite-rpmbuild-rpm-almalinux-8" >> $GITHUB_ENV
+          echo "ARTIFACT_NAME=csync2-2.1.1-sqlite-rpmbuild-rpm-almalinux-8" >> $GITHUB_ENV
         else
-          echo "ARTIFACT_NAME=csync2-sqlite-rpmbuild-rpm-almalinux-9" >> $GITHUB_ENV
+          echo "ARTIFACT_NAME=csync2-2.1.1-sqlite-rpmbuild-rpm-almalinux-9" >> $GITHUB_ENV
         fi
 
     - name: Upload RPM
