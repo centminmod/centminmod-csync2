@@ -123,12 +123,20 @@ jobs:
 
           echo
           echo 'ldd /usr/sbin/csync2'
-          ldd /usr/sbin/csync2
+          ldd /usr/sbin/csync2 || true
           
           # Run the csync2 command to verify it works
           echo
           echo '/usr/sbin/csync2 -v'
           /usr/sbin/csync2 -v || true
+
+          echo
+          echo 'nm /usr/sbin/csync2 | grep sqlite'
+          nm /usr/sbin/csync2 | grep sqlite
+
+          echo
+          echo 'readelf -d /usr/sbin/csync2 | grep PATH'
+          readelf -d /usr/sbin/csync2 | grep PATH
         "
 
     - name: Debugging Show contents of /workspace/rpms

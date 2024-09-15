@@ -25,6 +25,7 @@ dnf groupinstall 'Development Tools' -y
 dnf install -y \
   wget \
   rpm-build \
+  binutils \
   gcc \
   make \
   readline-devel \

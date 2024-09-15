@@ -29,6 +29,7 @@ dnf groupinstall 'Development Tools' -y
 dnf install --allowerasing -y \
   libpq-devel \
   wget \
+  binutils \
   rpm-build \
   gcc \
   make \
