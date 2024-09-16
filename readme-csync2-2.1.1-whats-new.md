@@ -1,23 +1,31 @@
-csync2 2.1.1 RPM is based on forked csync2 code from https://github.com/erlandl4g/csync2 which in turn is forked from https://github.com/Shotaos/csync2 - keeping modifications for additional MariaDB MySQL support to accompany 4+ yr old Oracle MySQL and PostgreSQL database support and default sqlite3 support.
+* [csync 2.1.1 RPM Background](#csync-211-rpm-background)
+* [What's New In csync2 2.1.1 Enhancements](#whats-new-in-csync2-211-enhancements)
+* [csync2 2.1.1: Developer's Guide To New Features and Changes](#csync2-211-developers-guide-to-new-features-and-changes)
 
-* [What's New In Csync2 2.1.1 Enhancements](#whats-new-in-csync2-211-enhancements)
-* [Csync2 2.1.1: Developer's Guide To New Features and Changes](#csync2-211-developers-guide-to-new-features-and-changes)
+# csync 2.1.1 RPM Background
 
-# What's New In Csync2 2.1.1 Enhancements
+* csync2 is not available as YUM RPM packages for RHEL/CentOS/AlmaLinux/Rocky Linux EL8 and EL9 versions.
+* [Official csync2 release](https://github.com/LINBIT/csync2) is still on csync2 2.0 dated May 7, 2015 with official csync2 master branch on csync2 2.1.0rc1 dated September 19, 2020.
+* Built own csync2 2.0, 2.1.0 and 2.1.1 YUM RPMs for EL8 and EL9 distributions for my [Centmin Mod LEMP stack](https://centminmod.com) usage where:
+  * csync2 2.0 RPM is based on official csync2 release.
+  * csync2 2.1.0 RPM is based on official csync2 master branch 2.1.0rc1 with code modifications for additional MariaDB MySQL support to accompany 4+ yr old Oracle MySQL and PostgreSQL database support and default sqlite3 support. Also built a separate alternative RPM which is built against a newer [sqlite 3.46.1](https://sqlite.org/changes.html) source code based custom RPM instead of EL8/EL9 default sqlite 3.26 and sqlite 3.34 respective version.
+  * csync2 2.1.1 RPM is based on forked csync2 code from https://github.com/erlandl4g/csync2 which in turn is forked from https://github.com/Shotaos/csync2 - keeping modifications for additional MariaDB MySQL support to accompany 4+ yr old Oracle MySQL and PostgreSQL database support and default sqlite3 support. Also built a separate alternative RPM which is built against a newer [sqlite 3.46.1](https://sqlite.org/changes.html) source code based custom RPM instead of EL8/EL9 default sqlite 3.26 and sqlite 3.34 respective version.
+
+# What's New In csync2 2.1.1 Enhancements
 
 ## 1. Atomic File Patching
 
-The atomic file patching feature in Csync2 2.1.1 represents a significant advancement in ensuring data consistency and reducing race conditions during file synchronization. This improvement allows Csync2 to update files in a single, indivisible operation, encompassing both content changes and metadata modifications (such as ownership, permissions, and timestamps).
+The atomic file patching feature in csync2 2.1.1 represents a significant advancement in ensuring data consistency and reducing race conditions during file synchronization. This improvement allows csync2 to update files in a single, indivisible operation, encompassing both content changes and metadata modifications (such as ownership, permissions, and timestamps).
 
-The atomic approach utilizes a temporary file for applying changes, followed by an atomic rename operation to replace the original file. This method guarantees that other processes or system interruptions cannot observe or interact with partially updated files, thus maintaining data integrity throughout the sync process. For Csync2, this means enhanced reliability in multi-node environments where simultaneous file access is common. It reduces the risk of file corruption or inconsistency that could occur if a synchronization process were interrupted mid-update.
+The atomic approach utilizes a temporary file for applying changes, followed by an atomic rename operation to replace the original file. This method guarantees that other processes or system interruptions cannot observe or interact with partially updated files, thus maintaining data integrity throughout the sync process. For csync2, this means enhanced reliability in multi-node environments where simultaneous file access is common. It reduces the risk of file corruption or inconsistency that could occur if a synchronization process were interrupted mid-update.
 
-Additionally, by combining multiple operations (content update, ownership change, permission setting, and timestamp modification) into a single atomic action, Csync2 potentially reduces I/O operations and improves overall performance, especially for files that undergo frequent changes. However, this feature also introduces new considerations, such as ensuring compatibility across different file systems (particularly networked file systems like NFS) and handling very large files that might exceed available memory. Overall, the atomic file patching feature significantly enhances Csync2's robustness and reliability in maintaining synchronized file states across distributed systems.
+Additionally, by combining multiple operations (content update, ownership change, permission setting, and timestamp modification) into a single atomic action, csync2 potentially reduces I/O operations and improves overall performance, especially for files that undergo frequent changes. However, this feature also introduces new considerations, such as ensuring compatibility across different file systems (particularly networked file systems like NFS) and handling very large files that might exceed available memory. Overall, the atomic file patching feature significantly enhances csync2's robustness and reliability in maintaining synchronized file states across distributed systems.
 
-The "ATOMICPATCH" command is a significant enhancement in Csync2 2.1.1, designed to perform file updates in a single, atomic operation. This new command replaces the previous multi-step update process with a unified approach that handles both file content and metadata changes simultaneously.
+The "ATOMICPATCH" command is a significant enhancement in csync2 2.1.1, designed to perform file updates in a single, atomic operation. This new command replaces the previous multi-step update process with a unified approach that handles both file content and metadata changes simultaneously.
 
-When invoked, "ATOMICPATCH" takes the following parameters: file key, filename, user ID, group ID, file mode, and modification time (in nanoseconds). This comprehensive set of parameters allows Csync2 to update all aspects of a file in one operation.
+When invoked, "ATOMICPATCH" takes the following parameters: file key, filename, user ID, group ID, file mode, and modification time (in nanoseconds). This comprehensive set of parameters allows csync2 to update all aspects of a file in one operation.
 
-The command works by first creating a temporary file with the new content and metadata, then using an atomic rename operation to replace the original file. This method ensures that at no point during the update process is the file in an inconsistent state, which is crucial for maintaining data integrity in distributed systems. The atomic nature of this operation means that other processes will either see the old version of the file or the new version, but never an intermediate state. This is particularly important in environments where files might be accessed by multiple nodes or processes simultaneously. The "ATOMICPATCH" command significantly reduces the risk of file corruption or inconsistency that could occur if a synchronization process were interrupted mid-update, making Csync2 more robust and reliable in handling file synchronization across distributed systems.
+The command works by first creating a temporary file with the new content and metadata, then using an atomic rename operation to replace the original file. This method ensures that at no point during the update process is the file in an inconsistent state, which is crucial for maintaining data integrity in distributed systems. The atomic nature of this operation means that other processes will either see the old version of the file or the new version, but never an intermediate state. This is particularly important in environments where files might be accessed by multiple nodes or processes simultaneously. The "ATOMICPATCH" command significantly reduces the risk of file corruption or inconsistency that could occur if a synchronization process were interrupted mid-update, making csync2 more robust and reliable in handling file synchronization across distributed systems.
 
 ### Detailed Implementation:
 - New global flag `csync_atomic_patch` introduced in `csync2.c`
@@ -39,12 +47,12 @@ The command works by first creating a temporary file with the new content and me
   - Possible reduction in I/O operations by combining updates
 
 ### Challenges:
-- Backward compatibility with older Csync2 versions may be affected
+- Backward compatibility with older csync2 versions may be affected
 - Potential issues with file systems that don't support atomic operations
 
 ## 2. Inotify Integration
 
-The inotify_csync.sh script is a powerful addition to Csync2 that leverages the inotify system to provide real-time file synchronization. It monitors specified directories for changes and triggers Csync2 updates accordingly, offering a more efficient and responsive synchronization process compared to periodic scanning.
+The inotify_csync.sh script is a powerful addition to csync2 that leverages the inotify system to provide real-time file synchronization. It monitors specified directories for changes and triggers csync2 updates accordingly, offering a more efficient and responsive synchronization process compared to periodic scanning.
 
 ### Key Components
 
@@ -54,8 +62,8 @@ The inotify_csync.sh script is a powerful addition to Csync2 that leverages the 
 2. Event Queue:
    Implements a file-based queue system to manage detected changes.
 
-3. Csync2 Integration:
-   Triggers Csync2 commands based on detected file system events.
+3. csync2 Integration:
+   Triggers csync2 commands based on detected file system events.
 
 4. Parallel Processing:
    Supports parallel updates for multiple peers to improve performance.
@@ -103,8 +111,8 @@ parallel_updates=1
    done
    ```
 
-3. Csync2 Integration:
-   The script calls Csync2 to check and update files:
+3. csync2 Integration:
+   The script calls csync2 to check and update files:
 
    ```bash
    csync2 "${csync_opts[@]}" -cr "${csync_files[@]}"  # Check files
@@ -154,7 +162,7 @@ parallel_updates=1
 
 5. Testing: Thoroughly test the script in a non-production environment, especially when using parallel updates, to ensure it behaves as expected with your specific file system and network configuration.
 
-By using this script, you can significantly enhance Csync2's responsiveness to file changes, making it more suitable for scenarios requiring near real-time synchronization across multiple nodes.
+By using this script, you can significantly enhance csync2's responsiveness to file changes, making it more suitable for scenarios requiring near real-time synchronization across multiple nodes.
 
 ### Detailed Script Analysis (`inotify_csync.sh`):
 - Uses `inotifywait` in monitor mode with configurable event types
@@ -178,18 +186,18 @@ By using this script, you can significantly enhance Csync2's responsiveness to f
   - Increased memory usage for maintaining inotify watches
   - Potential for high I/O if many small changes occur rapidly
 
-### Integration with Csync2:
-- Uses Csync2 commands directly, bypassing the need for periodic scans
+### Integration with csync2:
+- Uses csync2 commands directly, bypassing the need for periodic scans
 - Utilizes new `-P` flag for parallel updates
 - Parses `csync2.cfg` for configuration details
 
 ## 3. Enhanced Timestamp Precision
 
-The enhanced timestamp precision feature in Csync2 2.1.1 represents a significant improvement in file synchronization accuracy, particularly for environments with rapidly changing files or where millisecond-level precision is insufficient.
+The enhanced timestamp precision feature in csync2 2.1.1 represents a significant improvement in file synchronization accuracy, particularly for environments with rapidly changing files or where millisecond-level precision is insufficient.
 
-By implementing nanosecond-level timestamp precision across key components of the system (checktxt.c, daemon.c, and update.c), Csync2 can now detect and synchronize changes that occur within extremely short time intervals. This enhancement allows for more granular tracking of file modifications, reducing the likelihood of missed updates in high-frequency change scenarios.
+By implementing nanosecond-level timestamp precision across key components of the system (checktxt.c, daemon.c, and update.c), csync2 can now detect and synchronize changes that occur within extremely short time intervals. This enhancement allows for more granular tracking of file modifications, reducing the likelihood of missed updates in high-frequency change scenarios.
 
-The shift from 32-bit to 64-bit integer representation for timestamps not only provides the necessary range for nanosecond precision but also future-proofs the system against the Year 2038 problem. However, this improvement comes with considerations: increased storage requirements for timestamps, potential performance impacts due to more complex comparisons, and possible compatibility issues with older file systems or Csync2 versions that may not support such high-precision timestamps. Despite these challenges, the enhanced timestamp precision significantly improves Csync2's ability to maintain accurate file synchronization in demanding, fast-paced environments, making it a valuable upgrade for systems requiring utmost accuracy in file state replication.
+The shift from 32-bit to 64-bit integer representation for timestamps not only provides the necessary range for nanosecond precision but also future-proofs the system against the Year 2038 problem. However, this improvement comes with considerations: increased storage requirements for timestamps, potential performance impacts due to more complex comparisons, and possible compatibility issues with older file systems or csync2 versions that may not support such high-precision timestamps. Despite these challenges, the enhanced timestamp precision significantly improves csync2's ability to maintain accurate file synchronization in demanding, fast-paced environments, making it a valuable upgrade for systems requiring utmost accuracy in file state replication.
 
 ### Implementation Details:
 - `checktxt.c`:
@@ -205,7 +213,7 @@ The shift from 32-bit to 64-bit integer representation for timestamps not only p
 ### Technical Impact:
 - Improves sync accuracy for rapidly changing files
 - Increases timestamp storage requirements (64-bit integer vs 32-bit)
-- Potential compatibility issues with older file systems or Csync2 versions
+- Potential compatibility issues with older file systems or csync2 versions
 
 ## 4. Improved Database Support
 
@@ -225,11 +233,11 @@ The shift from 32-bit to 64-bit integer representation for timestamps not only p
 
 ## 5. Automatic Hostname Detection
 
-The automatic hostname detection feature in Csync2 2.1.1 introduces a sophisticated algorithm to dynamically identify and set the local hostname, enhancing the system's adaptability in diverse network environments. This feature iterates through all hostnames specified in the Csync2 configuration, attempting to resolve and bind to each one using low-level network operations.
+The automatic hostname detection feature in csync2 2.1.1 introduces a sophisticated algorithm to dynamically identify and set the local hostname, enhancing the system's adaptability in diverse network environments. This feature iterates through all hostnames specified in the csync2 configuration, attempting to resolve and bind to each one using low-level network operations.
 
 By leveraging `getaddrinfo()` for resolution and attempting to `bind()` to resolved addresses, the system can accurately determine its identity within the network topology. This approach is particularly beneficial in DHCP environments or systems with complex networking setups, as it eliminates the need for manual hostname configuration.
 
-However, this functionality comes with certain technical implications: it may lead to increased startup times, especially in networks with numerous or hard-to-resolve hostnames, and the binding attempts could potentially trigger security alerts on some systems. Despite these considerations, the automatic hostname detection significantly improves Csync2's ease of deployment and reliability across various network configurations, making it more robust and user-friendly in dynamic environments.
+However, this functionality comes with certain technical implications: it may lead to increased startup times, especially in networks with numerous or hard-to-resolve hostnames, and the binding attempts could potentially trigger security alerts on some systems. Despite these considerations, the automatic hostname detection significantly improves csync2's ease of deployment and reliability across various network configurations, making it more robust and user-friendly in dynamic environments.
 
 ### Algorithm in `csync2.c`:
 1. Iterates through all hostnames in csync2 configuration
@@ -246,9 +254,9 @@ However, this functionality comes with certain technical implications: it may le
 
 ## 6. Performance Optimizations
 
-Csync2 2.1.1 introduces two major performance optimizations that significantly enhance its efficiency and scalability: batched delete operations and parallel updates. The batched delete operations feature, implemented through the `batched_dirty_deletes` variable in `update.c`, allows Csync2 to accumulate and execute multiple delete operations in a single batch. This approach substantially reduces the number of individual DELETE queries sent to the database, potentially improving transaction handling and reducing lock contention. As a result, Csync2 can handle large numbers of file deletions more efficiently, particularly beneficial in scenarios involving extensive file cleanups or reorganizations.
+csync2 2.1.1 introduces two major performance optimizations that significantly enhance its efficiency and scalability: batched delete operations and parallel updates. The batched delete operations feature, implemented through the `batched_dirty_deletes` variable in `update.c`, allows csync2 to accumulate and execute multiple delete operations in a single batch. This approach substantially reduces the number of individual DELETE queries sent to the database, potentially improving transaction handling and reducing lock contention. As a result, csync2 can handle large numbers of file deletions more efficiently, particularly beneficial in scenarios involving extensive file cleanups or reorganizations.
 
-Complementing this, the parallel updates feature, activated via the new `-P` command-line option, enables Csync2 to perform updates on multiple peers simultaneously. This parallelization, coupled with the modification in `check.c` to skip dirty marking for inactive peers, allows for more efficient utilization of network resources and significantly reduces synchronization times in multi-node setups. The integration of these features with the `inotify_csync.sh` script further amplifies their benefits, enabling real-time, efficient synchronization across complex distributed environments. While these optimizations greatly enhance performance, they also introduce new considerations for conflict resolution and database management, requiring careful implementation in production environments.
+Complementing this, the parallel updates feature, activated via the new `-P` command-line option, enables csync2 to perform updates on multiple peers simultaneously. This parallelization, coupled with the modification in `check.c` to skip dirty marking for inactive peers, allows for more efficient utilization of network resources and significantly reduces synchronization times in multi-node setups. The integration of these features with the `inotify_csync.sh` script further amplifies their benefits, enabling real-time, efficient synchronization across complex distributed environments. While these optimizations greatly enhance performance, they also introduce new considerations for conflict resolution and database management, requiring careful implementation in production environments.
 
 ### Batched Delete Operations:
 - New global variable `batched_dirty_deletes` in `update.c`
@@ -362,7 +370,7 @@ void csync_vdebug(int lv, const char *fmt, va_list ap)
 
 ---
 
-# Csync2 2.1.1: Developer's Guide To New Features and Changes
+# csync2 2.1.1: Developer's Guide To New Features and Changes
 
 ## 1. Atomic File Patching
 
@@ -485,7 +493,7 @@ done
 3. `csync_server_wait()`:
    - Ensures the csync2 server is idle before operations.
 
-### Integration with Csync2
+### Integration with csync2
 
 - Uses csync2 command-line interface:
   ```bash
@@ -749,7 +757,7 @@ fi
 
 ## Conclusion
 
-This detailed technical analysis provides a comprehensive overview of the significant changes and enhancements in Csync2 2.1.1. The updates touch on various aspects of the system, from low-level file operations to high-level synchronization strategies and database interactions.
+This detailed technical analysis provides a comprehensive overview of the significant changes and enhancements in csync2 2.1.1. The updates touch on various aspects of the system, from low-level file operations to high-level synchronization strategies and database interactions.
 
 Key areas for developers to focus on include:
 1. Understanding the implications of atomic file operations across different file systems.
