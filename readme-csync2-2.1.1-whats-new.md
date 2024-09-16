@@ -1,7 +1,7 @@
 csync2 2.1.1 RPM is based on forked csync2 code from https://github.com/erlandl4g/csync2 which in turn is forked from https://github.com/Shotaos/csync2 - keeping modifications for additional MariaDB MySQL support to accompany 4+ yr old Oracle MySQL and PostgreSQL database support and default sqlite3 support.
 
-* [What's New In Csync2 2.1.1 Enhancements]()
-* [Csync2 2.1.1: Developer's Guide To New Features and Changes]()
+* [What's New In Csync2 2.1.1 Enhancements](#whats-new-in-csync2-211-enhancements)
+* [Csync2 2.1.1: Developer's Guide To New Features and Changes](#csync2-211-developers-guide-to-new-features-and-changes)
 
 # What's New In Csync2 2.1.1 Enhancements
 
