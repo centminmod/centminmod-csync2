@@ -20,7 +20,7 @@ Source       : csync2-2.1.1-1.el8.src.rpm
 Repository   : @System
 From repo    : @commandline
 Summary      : Cluster synchronization tool
-URL          : https://github.com/centminmod/csync2#readme
+URL          : https://github.com/centminmod/csync2/tree/2.1
 License      : GPL-2.0-or-later
 Description  : Csync2 is a cluster synchronization tool. It can be used to keep files on
              : multiple hosts in a cluster in sync. Csync2 can handle complex setups with
@@ -50,7 +50,7 @@ Source       : csync2-2.1.1-1.el9.src.rpm
 Repository   : @System
 From repo    : @commandline
 Summary      : Cluster synchronization tool
-URL          : https://github.com/centminmod/csync2#readme
+URL          : https://github.com/centminmod/csync2/tree/2.1
 License      : GPL-2.0-or-later
 Description  : Csync2 is a cluster synchronization tool. It can be used to keep files on
              : multiple hosts in a cluster in sync. Csync2 can handle complex setups with
