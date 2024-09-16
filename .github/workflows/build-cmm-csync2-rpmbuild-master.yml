@@ -132,16 +132,19 @@ jobs:
       run: |
         echo "Displaying csync2 socket status:"
         cat ${{ github.workspace }}/csync2-socket-status.log
+      continue-on-error: true
 
     - name: Display csync2 ss port check
       run: |
         echo "Displaying csync2 ss port check:"
         cat ${{ github.workspace }}/csync2-socket-ss-status.log
+      continue-on-error: true
 
     - name: Display csync2 journalctl log
       run: |
         echo "Displaying csync2 journalctl log:"
         cat ${{ github.workspace }}/csync2-socket-journalctl.log
+      continue-on-error: true
 
     - name: Display csync2 ldd info
       run: |
