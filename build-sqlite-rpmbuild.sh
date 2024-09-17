@@ -30,6 +30,9 @@ dnf groupinstall 'Development Tools' -y
 dnf install -y \
   sqlite \
   wget \
+  nano \
+  jq \
+  bc \
   rpm-build \
   binutils \
   gcc \

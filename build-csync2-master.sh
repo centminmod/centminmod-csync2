@@ -30,6 +30,9 @@ dnf groupinstall 'Development Tools' -y
 dnf install --allowerasing -y \
   libpq-devel \
   wget \
+  nano \
+  jq \
+  bc \
   gcc \
   make \
   rpmdevtools \

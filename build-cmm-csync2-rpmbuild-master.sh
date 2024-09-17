@@ -29,6 +29,9 @@ dnf groupinstall 'Development Tools' -y
 dnf install --allowerasing -y \
   libpq-devel \
   wget \
+  nano \
+  jq \
+  bc \
   binutils \
   iproute \
   rpm-build \
