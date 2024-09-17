@@ -29,6 +29,7 @@ dnf install -y postgresql-server-devel
 dnf groupinstall 'Development Tools' -y
 dnf install --allowerasing -y \
   libpq-devel \
+  inotify-tools \
   wget \
   nano \
   jq \

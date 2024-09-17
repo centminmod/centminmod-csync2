@@ -30,6 +30,7 @@ dnf groupinstall 'Development Tools' -y
 dnf install -y \
   sqlite \
   wget \
+  inotify-tools \
   nano \
   jq \
   bc \

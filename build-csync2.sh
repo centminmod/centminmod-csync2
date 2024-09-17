@@ -30,6 +30,7 @@ dnf groupinstall 'Development Tools' -y
 dnf install --allowerasing -y \
   libpq-devel \
   wget \
+  inotify-tools \
   nano \
   jq \
   bc \
