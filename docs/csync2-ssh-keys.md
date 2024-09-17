@@ -4,7 +4,7 @@ Csync2 uses SSL certificates for secure communication between nodes. This guide 
 
 * [Prerequisites](#prerequisites)
 * [Certificate Generation Options Via make command](#certificate-generation-options-via-make-command)
-- [Manual Certificate Generation](#manual-certificate-generation)
+* [Manual Certificate Generation](#manual-certificate-generation)
 
 ## Prerequisites
 
