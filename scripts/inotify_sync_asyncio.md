@@ -68,7 +68,7 @@ Or non-Centmin Mod
 ```
 sudo dnf -y module reset python38
 sudo dnf -y module enable python38
-sudo dnf -y install python38
+sudo dnf -y install python38 python3-pip
 
 # Set the default python3 to Python 3.8
 sudo alternatives --install /usr/bin/python3 python3 /usr/bin/python3.8 2
