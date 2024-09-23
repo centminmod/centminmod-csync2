@@ -7,12 +7,14 @@ import argparse
 import pyinotify
 import signal
 import sys
+import time
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 config_file = "/etc/csync2/csync2.cfg"
 csync_log_file = "/home/csync2-inotify/tmp/csync_server_python.log"
+queue_file = "/home/csync2-inotify/tmp/inotify_queue.log"
 
 def parse_config_file(config_file):
     includes = []
@@ -24,35 +26,79 @@ def parse_config_file(config_file):
     return includes
 
 class ChangeHandler(pyinotify.ProcessEvent):
-    def __init__(self, csync_opts):
+    def __init__(self, csync_opts, debug=False):
         self.csync_opts = csync_opts
+        self.debug = debug
+        self.last_sync = time.time()
+        self.sync_interval = 5  # seconds
+        self.max_batch_size = 1000
 
     def process_IN_CLOSE_WRITE(self, event):
-        self.sync_file(event.pathname)
+        self.add_to_queue(event.pathname)
 
     def process_IN_CREATE(self, event):
-        self.sync_file(event.pathname)
+        self.add_to_queue(event.pathname)
 
     def process_IN_DELETE(self, event):
-        self.sync_file(event.pathname)
+        self.add_to_queue(event.pathname)
 
     def process_IN_MOVED_TO(self, event):
-        self.sync_file(event.pathname)
+        self.add_to_queue(event.pathname)
 
-    def sync_file(self, filepath):
-        logger.info(f"Syncing file: {filepath}")
+    def add_to_queue(self, filepath):
+        with open(queue_file, 'a') as f:
+            f.write(f"{filepath}\n")
+        self.check_sync()
+
+    def check_sync(self):
+        current_time = time.time()
+        if current_time - self.last_sync >= self.sync_interval:
+            self.sync_changes()
+
+    def sync_changes(self):
+        if not os.path.exists(queue_file) or os.path.getsize(queue_file) == 0:
+            return
+
+        with open(queue_file, 'r') as f:
+            changes = f.readlines()
+
+        logger.info(f"Syncing {len(changes)} files")
+        
+        batch = []
+        for change in changes:
+            batch.append(change.strip())
+            if len(batch) >= self.max_batch_size:
+                self.sync_batch(batch)
+                batch = []
+
+        if batch:
+            self.sync_batch(batch)
+
+        open(queue_file, 'w').close()  # Clear the queue file
+        self.last_sync = time.time()
+
+    def sync_batch(self, batch):
         try:
-            result = subprocess.run(["csync2", "-x", "-v"] + self.csync_opts + [filepath], 
-                                    capture_output=True, text=True, check=True)
-            logger.debug(f"Csync2 output: {result.stdout}")
+            cmd = ["csync2", "-x"]
+            if self.debug:
+                cmd.append("-v")
+            cmd.extend(self.csync_opts + batch)
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            if self.debug:
+                logger.debug(f"Csync2 output: {result.stdout}")
         except subprocess.CalledProcessError as e:
             logger.error(f"Csync2 error: {e}")
-            logger.error(f"Csync2 error output: {e.stderr}")
+            if self.debug:
+                logger.error(f"Csync2 error output: {e.stderr}")
 
-def start_csync2_daemon(csync_opts):
+def start_csync2_daemon(csync_opts, debug=False):
     logger.info("Starting csync2 daemon")
     try:
-        csync_server = subprocess.Popen(["csync2", "-ii", "-v", "-t"] + csync_opts,
+        cmd = ["csync2", "-ii", "-t"]
+        if debug:
+            cmd.append("-v")
+        cmd.extend(csync_opts)
+        csync_server = subprocess.Popen(cmd,
                                         stdout=open(csync_log_file, 'w'),
                                         stderr=subprocess.STDOUT)
         return csync_server
@@ -60,15 +106,15 @@ def start_csync2_daemon(csync_opts):
         logger.error(f"Error starting csync2 daemon: {e}")
         sys.exit(1)
 
-def main(csync_opts):
+def main(csync_opts, debug=False):
     includes = parse_config_file(config_file)
     logger.info(f"Configured includes: {includes}")
 
-    csync_server = start_csync2_daemon(csync_opts)
+    csync_server = start_csync2_daemon(csync_opts, debug)
 
     wm = pyinotify.WatchManager()
     mask = pyinotify.IN_CLOSE_WRITE | pyinotify.IN_CREATE | pyinotify.IN_DELETE | pyinotify.IN_MOVED_TO
-    handler = ChangeHandler(csync_opts)
+    handler = ChangeHandler(csync_opts, debug)
     notifier = pyinotify.Notifier(wm, handler)
 
     for include_path in includes:
@@ -79,6 +125,7 @@ def main(csync_opts):
     
     def signal_handler(signum, frame):
         logger.info("Received signal to terminate. Stopping csync2 daemon and inotify watch.")
+        handler.sync_changes()  # Sync any remaining changes
         csync_server.terminate()
         notifier.stop()
         sys.exit(0)
@@ -87,10 +134,15 @@ def main(csync_opts):
     signal.signal(signal.SIGINT, signal_handler)
 
     try:
-        notifier.loop()
+        while True:
+            if notifier.check_events(timeout=1000):
+                notifier.read_events()
+                notifier.process_events()
+            handler.check_sync()
     except KeyboardInterrupt:
         logger.info("Keyboard interrupt received. Stopping inotify watch and csync2 daemon.")
     finally:
+        handler.sync_changes()  # Sync any remaining changes
         notifier.stop()
         csync_server.terminate()
         csync_server.wait()
@@ -103,4 +155,4 @@ if __name__ == "__main__":
     if args.debug:
         logger.setLevel(logging.DEBUG)
 
-    main(csync_opts)
+    main(csync_opts, args.debug)
