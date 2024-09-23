@@ -123,10 +123,10 @@ The script uses several configuration parameters that can be adjusted through co
 
 ## Usage
 
-Run the script with the desired options:
+Set up script at `/usr/local/bin/inotify_csync.py` with executable permissions and run the script with the desired options:
 
 ```
-./inotify_csync_asyncio.py -N hostname [additional csync2 options]
+/usr/local/bin/inotify_csync.py -N hostname [additional csync2 options]
 ```
 
 Replace `hostname` with the name of the current host as specified in the csync2 configuration file.
@@ -134,7 +134,61 @@ Replace `hostname` with the name of the current host as specified in the csync2 
 Example with additional options:
 
 ```
-./inotify_csync_asyncio.py -N host1 --mode thread --debug --disable-rsync
+/usr/local/bin/inotify_csync.py -N host1 --mode thread --debug --disable-rsync
+```
+
+Setup as systemd service
+
+On `host1`
+
+
+`/etc/systemd/system/inotify_csync.service`
+
+```
+[Unit]
+Description=Inotify Csync2 Sync Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/inotify_csync.py -N host1
+Restart=on-failure
+RestartSec=5
+User=root
+WorkingDirectory=/home/csync2-inotify
+
+[Install]
+WantedBy=multi-user.target
+```
+
+On `host2`
+
+
+`/etc/systemd/system/inotify_csync.service`
+
+```
+[Unit]
+Description=Inotify Csync2 Sync Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/inotify_csync.py -N host2
+Restart=on-failure
+RestartSec=5
+User=root
+WorkingDirectory=/home/csync2-inotify
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```
+sudo systemctl daemon-reload
+sudo systemctl enable inotify_csync.service
+sudo systemctl start inotify_csync.service
+sudo journalctl -u inotify_csync.service --no-pager | tail -25
+sudo systemctl status inotify_csync.service --no-pager -l
 ```
 
 ## How It Works
