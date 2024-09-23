@@ -64,9 +64,9 @@ class ChangeEventHandler(pyinotify.ProcessEvent):
     def __init__(self, queue):
         self.queue = queue
 
-    def process_default(self, event):
+    async def process_default(self, event):
         logger.debug(f"Detected event: {event.maskname} on {event.pathname}")
-        self.queue.put(event.pathname)
+        await self.queue.put(event.pathname)
 
     process_IN_CREATE = process_IN_DELETE = process_IN_MODIFY = process_default
     process_IN_CLOSE_WRITE = process_IN_MOVED_FROM = process_IN_MOVED_TO = process_default
@@ -331,12 +331,21 @@ def run_threaded(csync_opts):
     process_queue_thread = threading.Thread(target=process_queue_thread, args=(event_queue, csync_opts, includes, nodes))
     process_queue_thread.start()
 
-    def signal_handler(signum, frame):
+    def signal_handler():
         global shutdown_flag
         logger.info("Received shutdown signal. Initiating graceful shutdown...")
         shutdown_flag = True
-        notifier.stop()
-        csync_server.terminate()
+        queue_task.cancel()
+
+        # Safely terminate the subprocess, check if transport exists
+        if csync_server._transport is None or csync_server._transport.is_closing():
+            logger.info("Csync2 server process already terminated or never started.")
+        else:
+            try:
+                csync_server.terminate()  # This safely terminates the subprocess
+                logger.info("Csync2 server terminated.")
+            except ProcessLookupError:
+                logger.info("Csync2 server process not found. It might have already been terminated.")
 
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
