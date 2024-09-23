@@ -151,6 +151,9 @@ After=network.target
 
 [Service]
 Type=simple
+# Pre-start script to kill any running csync2 processes
+ExecStartPre=/bin/bash -c 'pgrep -f csync2 && killall csync2 || true'
+# Start the csync2 service
 ExecStart=/usr/local/bin/inotify_csync.py -N host1
 Restart=on-failure
 RestartSec=5
@@ -173,6 +176,9 @@ After=network.target
 
 [Service]
 Type=simple
+# Pre-start script to kill any running csync2 processes
+ExecStartPre=/bin/bash -c 'pgrep -f csync2 && killall csync2 || true'
+# Start the csync2 service
 ExecStart=/usr/local/bin/inotify_csync.py -N host2
 Restart=on-failure
 RestartSec=5
