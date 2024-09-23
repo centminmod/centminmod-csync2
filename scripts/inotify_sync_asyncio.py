@@ -64,9 +64,10 @@ class ChangeEventHandler(pyinotify.ProcessEvent):
     def __init__(self, queue):
         self.queue = queue
 
-    async def process_default(self, event):
+    def process_default(self, event):
         logger.debug(f"Detected event: {event.maskname} on {event.pathname}")
-        await self.queue.put(event.pathname)
+        # Add to the queue in a non-async way
+        self.queue.put_nowait(event.pathname)
 
     process_IN_CREATE = process_IN_DELETE = process_IN_MODIFY = process_default
     process_IN_CLOSE_WRITE = process_IN_MOVED_FROM = process_IN_MOVED_TO = process_default
