@@ -15,7 +15,7 @@ mkdir -p /home/csync2-inotify/tmp
 check_interval=0.5                   # Seconds between queue checks - fractions allowed
 full_sync_interval=$((60*60))        # Seconds between a regular full sync - zero to turn off
 num_lines_until_reset=200000         # Reset queue log file after reading this many lines
-num_batched_changes_threshold=15000  # Number of changes in one batch that will trigger a full sync and reset
+num_batched_changes_threshold=30000  # Number of changes in one batch that will trigger a full sync and reset
 parallel_updates=1                   # Flag (0/1) to toggle updating of peers/nodes in parallel
 
 #cfg_path=/usr/local/etc
