@@ -22,6 +22,11 @@ parallel_updates=1                   # Flag (0/1) to toggle updating of peers/no
 cfg_path=/etc/csync2
 cfg_file=csync2.cfg
 
+# inotify settings
+max_user_watches="$(sysctl fs.inotify.max_user_watches | awk -F '= ' '{print $2}')"
+max_user_instances="$(sysctl fs.inotify.max_user_instances | awk -F '= ' '{print $2}')"
+max_queued_events="$(sysctl fs.inotify.max_queued_events | awk -F '= ' '{print $2}')"
+
 # Separate all passed options for csync
 csync_opts=("$@")
 
@@ -29,7 +34,7 @@ csync_opts=("$@")
 # --- VERSION ---
 
 echo "CSync Controller"
-echo "Version 18 Sep 2024"
+echo "Version 24 Sep 2024"
 echo
 echo "Passed options: ${csync_opts[*]}"
 echo
@@ -39,6 +44,11 @@ echo "  full_sync_interval            = ${full_sync_interval}s"
 echo "  num_lines_until_reset         = $num_lines_until_reset"
 echo "  num_batched_changes_threshold = $num_batched_changes_threshold"
 echo "  parallel_updates              = $parallel_updates"
+echo
+echo "* inotify settings"
+echo "  fs.inotify.max_user_watches   = ${max_user_watches}"
+echo "  fs.inotify.max_user_instances = ${max_user_instances}"
+echo "  fs.inotify.max_queued_events  = ${max_queued_events}"
 
 
 # --- CSYNC SERVER ---
