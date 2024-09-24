@@ -1,31 +1,58 @@
 #!/bin/bash
 
 # Watch csync directories and sync changes via csync2
-#
-# $1: csync2 options to passthrough
-
 
 # --- SETTINGS ---
 
-file_events="move,delete,attrib,create,close_write,modify"       # File events to monitor - no spaces in this list
-queue_file=/home/csync2-inotify/tmp/inotify_queue.log            # File used for event queue
-csync_log=/home/csync2-inotify/tmp/csync_server.log              # File used for monitoring csync server timings
+file_events="move,delete,attrib,create,close_write,modify"
+queue_file=/home/csync2-inotify/tmp/inotify_queue.log
+csync_log=/home/csync2-inotify/tmp/csync_server.log
 mkdir -p /home/csync2-inotify/tmp
 
-check_interval=0.5                   # Seconds between queue checks - fractions allowed
-full_sync_interval=$((60*60))        # Seconds between a regular full sync - zero to turn off
-num_lines_until_reset=200000         # Reset queue log file after reading this many lines
-num_batched_changes_threshold=15000  # Number of changes in one batch that will trigger a full sync and reset
-parallel_updates=1                   # Flag (0/1) to toggle updating of peers/nodes in parallel
-early_threshold_check="no"           # Toggleable early threshold check for csync2
+check_interval=0.5
+full_sync_interval=$((60*60))
+num_lines_until_reset=200000
+num_batched_changes_threshold=15000
+parallel_updates=1
+early_threshold_check="no"
 
-#cfg_path=/usr/local/etc
 cfg_path=/etc/csync2
 cfg_file=csync2.cfg
 
-# Separate all passed options for csync
-csync_opts=("$@")
+debug_mode=0
+csync_opts=()
+this_node=""
 
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -debug)
+            debug_mode=1
+            shift
+            ;;
+        -N)
+            if [[ -n $2 ]]; then
+                this_node=$2
+                csync_opts+=("$1" "$2")
+                shift 2
+            else
+                echo "Error: -N requires a hostname argument"
+                exit 1
+            fi
+            ;;
+        *)
+            csync_opts+=("$1")
+            shift
+            ;;
+    esac
+done
+
+# Function for debug logging
+debug_log() {
+    if [[ $debug_mode -eq 1 ]]; then
+        echo "DEBUG: $*"
+    fi
+}
 
 # --- VERSION ---
 
@@ -35,29 +62,25 @@ echo
 echo "Passed options: ${csync_opts[*]}"
 echo
 echo "* SETTINGS"
+echo "  debug_mode                    = ${debug_mode}"
 echo "  check_interval                = ${check_interval}s"
 echo "  full_sync_interval            = ${full_sync_interval}s"
 echo "  num_lines_until_reset         = $num_lines_until_reset"
 echo "  num_batched_changes_threshold = $num_batched_changes_threshold"
 echo "  parallel_updates              = $parallel_updates"
 
+# Check if hostname is specified
+if [[ -z $this_node ]]; then
+    echo "*** WARNING: No hostname specified ***"
+    sleep 2
+else
+    echo "Hostname: $this_node"
+fi
 
 # --- CSYNC SERVER ---
 
-# Extract server-specific options
-server_opts=()
-if [[ $* =~ -N[[:space:]]?([[:alnum:]\.]+) ]]  # hostname
-then
-    this_node=${BASH_REMATCH[1]}
-    server_opts+=(-N "$this_node") # added as two elements
-else
-    echo "*** WARNING: No hostname specified ***"
-    sleep 2
-fi
-if [[ $* =~ -D[[:space:]]?([[:graph:]]+) ]]    # database path
-then
-    server_opts+=(-D "${BASH_REMATCH[1]}")
-fi
+# Set server options
+server_opts=(-N "$this_node")
 
 echo
 echo "* SERVER"
@@ -80,13 +103,11 @@ trap 'kill $csync_pid' EXIT
 
 echo "  Running..."
 
-
 # --- PARSE CSYNC CONFIG FILE ---
 
 # Parse csync2 config file for included and excluded locations
 while read -r key value
 do
-    # Ignore comments and blank lines
     if [[ ! $key =~ ^\ *# && -n $key ]]
     then
         if [[ $key == "host" && $value != $this_node* ]]
@@ -114,7 +135,6 @@ then
     exit 1
 fi
 
-
 # --- INOTIFY FILE MONITOR ---
 
 echo
@@ -126,17 +146,14 @@ truncate -s 0 $queue_file
 # Monitor for events in the background and add altered files to queue file
 while read -r file
 do
-    # Check if excluded
     for excluded in "${excludes[@]}"
     do
         if [[ $file == $excluded* ]]
         then
-            # Excluded - skip this file and return to inotifywait
             continue 2
         fi
     done
 
-    # Add file to queue
     echo "$file" >> $queue_file
 
 done < <(inotifywait --monitor --recursive --event $file_events --format "%w%f" "${includes[@]}") &
@@ -149,13 +166,11 @@ trap 'kill $inotify_pid; kill $csync_pid' EXIT
 sleep 1
 echo "  Running..."
 
-
 # --- HELPERS ---
 
 # Wait until csync server is quiet
 function csync_server_wait()
 {
-    # Wait until the end timestamp record appears in the last log line or if the file is empty
     until tail --lines=1 $csync_log | grep --quiet TOTALTIME || [[ ! -s $csync_log ]]
     do
         echo "...waiting for csync server..."
@@ -163,23 +178,19 @@ function csync_server_wait()
     done
 }
 
-
 # Run a full check and sync operation
 function csync_full_sync()
 {
     echo
     echo "* FULL SYNC"
 
-    # First wait until csync server is quiet
     csync_server_wait
 
     if (( parallel_updates ))
     then
-        # Check files separately from parallel update
         echo "  Checking all files"
         csync2 "${csync_opts[@]}" -cr "/"
 
-        # Update each node in parallel
         update_pids=()
         for node in "${nodes[@]}"
         do
@@ -189,7 +200,6 @@ function csync_full_sync()
         done
         wait "${update_pids[@]}"
     else
-        # Check nodes in sequence
         echo "  Checking and updating peers sequentially"
         csync2 "${csync_opts[@]}" -x
     fi
@@ -198,119 +208,102 @@ function csync_full_sync()
     echo "  Done"
 }
 
-
 # Reset queue
 function reset_queue()
 {
     echo
     echo "* RESET QUEUE LOG"
 
-    # Reset queue log file
     truncate -s 0 $queue_file
     queue_line_pos=1
 
-    # Run a full sync in case inotify triggered during reset
     csync_full_sync
 
-    # Reset csync server log too
     truncate -s 0 $csync_log
 }
 
-
 # --- QUEUE PROCESSING ---
 
-# Run a full check and sync before queue processing begins - after file monitor started so no changes are missed in-between
 csync_full_sync
 
-
-# Periodically monitor inotify queue file
 queue_line_pos=1
 last_full_sync=$(date +%s)
 while true
 do
-    # Delay between updates to allow for batches of inotify events to be gathered
     sleep $check_interval
 
-    # Make array starting from last read position in queue file
     mapfile -t file_list < <(tail --lines=+$queue_line_pos $queue_file)
 
     if [[ ${#file_list[@]} -eq 0 ]]
     then
-        # No new entries - quiet time
-
-        # Check for reset
         if [[ $queue_line_pos -ge $num_lines_until_reset ]]
         then
             reset_queue
-
-        # Check for regular full sync
         elif (( full_sync_interval && ($(date +%s) - last_full_sync) > full_sync_interval ))
         then
             csync_full_sync
         fi
-
-        # Jump back to sleep
         continue
     fi
 
     echo
     echo "* PROCESSING QUEUE (line $queue_line_pos)"
 
-    # Advance queue file position
     ((queue_line_pos+=${#file_list[@]}))
 
-    # Remove duplicates
-    # Efficient, order-preserving file deduplication for csync2/inotifywait
-    # - Removes duplicates while keeping original order (crucial for csync2)
-    # - Memory-efficient: only stores unique files
-    # - Suitable for real-time processing with inotifywait
-    # - Supports early threshold checking for improved responsiveness to large batches
-    # Input: file_list[], Output: csync_files[]
+    debug_log "--- Debug Info ---"
+    debug_log "Queue position: $queue_line_pos"
+    debug_log "Threshold: $num_batched_changes_threshold"
+    debug_log "Number of files in file_list: ${#file_list[@]}"
+
     declare -A seen_files
     csync_files=()
 
     if [[ "$early_threshold_check" == "yes" ]]; then
-        # Early threshold check enabled
         for file in "${file_list[@]}"; do
+            debug_log "Processing file: $file"
             if [[ -z ${seen_files[$file]} ]]; then
+                debug_log "New file detected: $file"
                 seen_files[$file]=1
                 csync_files+=("$file")
                 if [[ ${#csync_files[@]} -ge $num_batched_changes_threshold ]]; then
                     echo "* LARGE BATCH (${#csync_files[@]} files) - Early check"
                     csync_full_sync
-                    continue 2  # Skip to next iteration of main loop
+                    continue 2
                 fi
+            else
+                debug_log "Duplicate file: $file"
             fi
         done
     else
-        # Standard approach without early check
         for file in "${file_list[@]}"; do
+            debug_log "Processing file: $file"
             if [[ -z ${seen_files[$file]} ]]; then
+                debug_log "New file detected: $file"
                 seen_files[$file]=1
                 csync_files+=("$file")
+            else
+                debug_log "Duplicate file: $file"
             fi
         done
+
+        debug_log "Number of files after deduplication: ${#csync_files[@]}"
 
         if [[ ${#csync_files[@]} -ge $num_batched_changes_threshold ]]; then
             echo "* LARGE BATCH (${#csync_files[@]} files)"
             csync_full_sync
-            continue  # Skip to next iteration of main loop
+            continue
         fi
     fi
 
-    # Process the batch if it's under the threshold (for both early and standard checks)
     if [[ ${#csync_files[@]} -gt 0 ]]; then
-        # Wait until csync server is quiet
+        debug_log "Processing batch of ${#csync_files[@]} files"
         csync_server_wait
 
-        # Process files by sending csync commands
-        # 1. Check and possibly mark queued files as dirty
         echo "  Checking ${#csync_files[@]} files"
         csync2 "${csync_opts[@]}" -cr "${csync_files[@]}"
 
-        # 2. Update outstanding dirty files on peers
         if (( parallel_updates )); then
-            # Update each node in parallel
             update_pids=()
             for node in "${nodes[@]}"; do
                 echo "  Updating $node"
@@ -319,11 +312,11 @@ do
             done
             wait "${update_pids[@]}"
         else
-            # Update nodes in sequence
             echo "  Updating peers sequentially"
             csync2 "${csync_opts[@]}" -u
         fi
 
         echo "  Done"
     fi
+    debug_log "--- End of Loop ---"
 done
