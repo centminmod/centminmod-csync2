@@ -22,7 +22,29 @@ parallel_updates=1                   # Flag (0/1) to toggle updating of peers/no
 cfg_path=/etc/csync2
 cfg_file=csync2.cfg
 
-# inotify settings
+# --- inotify settings ---
+# Dynamic checking of current limits before setting new values
+
+# Check and set max_user_watches
+current_watches=$(sysctl -n fs.inotify.max_user_watches)
+if [ "$current_watches" -lt 1048576 ]; then
+    sysctl -w fs.inotify.max_user_watches=1048576
+    echo "Updated fs.inotify.max_user_watches to 1048576"
+fi
+
+# Check and set max_user_instances
+current_instances=$(sysctl -n fs.inotify.max_user_instances)
+if [ "$current_instances" -lt 8192 ]; then
+    sysctl -w fs.inotify.max_user_instances=8192
+    echo "Updated fs.inotify.max_user_instances to 8192"
+fi
+
+# Check and set max_queued_events
+current_events=$(sysctl -n fs.inotify.max_queued_events)
+if [ "$current_events" -lt 131072 ]; then
+    sysctl -w fs.inotify.max_queued_events=131072
+    echo "Updated fs.inotify.max_queued_events to 131072"
+fi
 max_user_watches="$(sysctl fs.inotify.max_user_watches | awk -F '= ' '{print $2}')"
 max_user_instances="$(sysctl fs.inotify.max_user_instances | awk -F '= ' '{print $2}')"
 max_queued_events="$(sysctl fs.inotify.max_queued_events | awk -F '= ' '{print $2}')"
@@ -49,7 +71,6 @@ echo "* inotify settings"
 echo "  fs.inotify.max_user_watches   = ${max_user_watches}"
 echo "  fs.inotify.max_user_instances = ${max_user_instances}"
 echo "  fs.inotify.max_queued_events  = ${max_queued_events}"
-
 
 # --- CSYNC SERVER ---
 
