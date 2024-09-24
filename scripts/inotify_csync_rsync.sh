@@ -178,14 +178,26 @@ function csync_full_sync()
         # Perform rsync for each node defined in the csync2.cfg file
         for node in "${nodes[@]}"
         do
-           # Skip the node if it's the same as the current node
+            # Skip the node if it's the same as the current node
             if [[ "$node" == "$this_node" ]]; then
                 echo "Skipping rsync to self ($this_node)"
                 continue
             fi
+            
             echo "Syncing to $node"
-            # Replace 'user' with the actual user for your remote sync, and adjust the path as needed
-            rsync -avz --delete "${includes[@]}" "user@${node}:/path/to/destination/"
+
+            # Build the rsync command dynamically with includes and excludes
+            for include_dir in "${includes[@]}"
+            do
+                rsync_exclude_opts=()
+                for exclude_dir in "${excludes[@]}"
+                do
+                    rsync_exclude_opts+=(--exclude="$exclude_dir")
+                done
+                
+                # Assuming the destination directory mirrors the source
+                rsync -avz --delete "${rsync_exclude_opts[@]}" "$include_dir" "user@${node}:$include_dir"
+            done
         done
     else
         # First wait until csync server is quiet
