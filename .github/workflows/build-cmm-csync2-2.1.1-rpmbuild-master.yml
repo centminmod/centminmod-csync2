@@ -1,4 +1,4 @@
-name: CMM rpmbuild Csync2 2.1.1 RPM + MariaDB
+name: 01 - CMM rpmbuild Csync2 2.1.1 RPM + MariaDB
 
 on:
   workflow_dispatch:
