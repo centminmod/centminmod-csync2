@@ -165,6 +165,7 @@ jobs:
       run: |
         echo "Displaying csync2 yum info:"
         cat ${{ github.workspace }}/csync2-yuminfo-output.log
+
     - name: Debugging Show contents of /workspace/rpms
       run: |
         echo "Checking for RPMs in /workspace/rpms on host..."
