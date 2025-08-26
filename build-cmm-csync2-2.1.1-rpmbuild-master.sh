@@ -15,7 +15,7 @@ if grep -q "release 8" /etc/redhat-release; then
 cat > /etc/yum.repos.d/mariadb.repo <<EOF
 [mariadb]
 name = MariaDB
-baseurl = https://archive.mariadb.org/mariadb-10.3/yum/centos8-amd64
+baseurl = https://archive.mariadb.org/mariadb-10.4/yum/centos8-amd64
 module_hotfixes=1
 gpgkey=${MDB_ARCHIVES_PUBKEY}
 gpgcheck=1
