@@ -93,13 +93,13 @@ dnf install --allowerasing -y \
 wget "https://github.com/centminmod/csync2/archive/refs/heads/2.1-2025-batch-delete-limit.tar.gz" -O "csync2-${CSYNC2_VER}-orig.tar.gz"
 tar -xzf "csync2-${CSYNC2_VER}-orig.tar.gz"
 
-# Rename the extracted directory to match the spec file's expectation
-mv csync2-2.1-2025-batch-delete-limit csync2-${CSYNC2_VER}
+# Rename the extracted directory to match the spec file's expectation (cdversion)
+mv csync2-2.1-2025-batch-delete-limit csync2-2.1
 
-# Repack the tarball with the correct directory name
-tar -czf "csync2-${CSYNC2_VER}.tar.gz" "csync2-${CSYNC2_VER}"
+# Repack the tarball with the correct directory name for spec file
+tar -czf "csync2-${CSYNC2_VER}.tar.gz" "csync2-2.1"
 
-cd "csync2-${CSYNC2_VER}"
+cd "csync2-2.1"
 
 # Prepare for building the RPM
 mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
