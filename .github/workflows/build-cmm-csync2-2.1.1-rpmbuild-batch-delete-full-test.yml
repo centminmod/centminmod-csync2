@@ -204,7 +204,8 @@ jobs:
               gnutls \
               libgcrypt \
               openssl \
-              net-tools --quiet
+              net-tools \
+              nmap-ncat --quiet
           
           # Find and install csync2 RPM
           RPM_FILE=$(ls /rpms/csync2-2.1.1-*.x86_64.rpm 2>/dev/null | grep -v debuginfo | head -n1)
@@ -263,20 +264,53 @@ jobs:
           systemctl enable csync2.socket
         else
           echo "Systemd not available, starting csync2 daemon directly..."
-          # Start csync2 daemon in standalone mode (not inetd mode)
-          /usr/sbin/csync2 -D ${HOSTNAME}.db3 -N ${HOSTNAME} -i &
-          echo "csync2 daemon started with PID $!"
-          # Save PID for later
-          echo $! > /var/run/csync2.pid
           
-          # Verify daemon is listening
-          sleep 2
-          if netstat -tln | grep -q 30865; then
-            echo "csync2 daemon is listening on port 30865"
+          # Pre-daemon startup debug info
+          echo "=== Pre-daemon startup debug info ==="
+          echo "Hostname: ${HOSTNAME}"
+          echo "Working directory: $(pwd)"
+          echo "csync2 version:"
+          /usr/sbin/csync2 -v || true
+          echo "Configuration file contents:"
+          cat /etc/csync2/csync2.cfg || true
+          echo "Key file check:"
+          ls -la /etc/csync2/csync2.key || true
+          echo "SSL certificate check:"
+          ls -la /etc/csync2/csync2_ssl_*.pem || true
+          echo "Database directory:"
+          ls -la /var/lib/csync2/ || true
+          
+          # Start csync2 daemon in server mode with verbose logging
+          echo "Starting csync2 daemon in server mode..."
+          /usr/sbin/csync2 -C /etc/csync2/csync2.cfg -D ${HOSTNAME}.db3 -N ${HOSTNAME} -ii -vvv > /tmp/csync2_daemon.log 2>&1 &
+          DAEMON_PID=$!
+          echo "csync2 daemon started with PID ${DAEMON_PID}"
+          echo ${DAEMON_PID} > /var/run/csync2.pid
+          
+          # Give daemon time to start and check multiple ways
+          sleep 3
+          
+          echo "=== Post-startup verification ==="
+          echo "Process check:"
+          if ps -p ${DAEMON_PID} > /dev/null; then
+            echo "✓ Daemon process ${DAEMON_PID} is running"
+            ps aux | grep csync2 | grep -v grep || true
           else
-            echo "Warning: csync2 daemon may not be listening properly"
-            ps aux | grep csync2
+            echo "✗ Daemon process ${DAEMON_PID} is NOT running"
+            echo "Daemon startup log:"
+            cat /tmp/csync2_daemon.log || true
           fi
+          
+          echo "Port check:"
+          if netstat -tln | grep -q 30865; then
+            echo "✓ csync2 is listening on port 30865"
+            netstat -tlnp | grep 30865 || true
+          else
+            echo "✗ csync2 is NOT listening on port 30865"
+          fi
+          
+          echo "Connection test to localhost:"
+          nc -zv localhost 30865 || echo "Cannot connect to port 30865"
         fi
         
         echo "Setup complete on ${HOSTNAME}"
@@ -289,10 +323,19 @@ jobs:
         
         echo "=== Starting csync2 sync tests ==="
         
+        # Pre-sync debug information
+        echo "=== Pre-sync debug information ==="
+        echo "Current hostname: $(hostname)"
+        echo "Database files:"
+        ls -la /var/lib/csync2/*.db* 2>/dev/null || echo "No database files found"
+        echo "Configuration check:"
+        csync2 -T || echo "Configuration test failed"
+        
         # Test 1: Basic file sync
         echo "Test 1: Creating test file on host1..."
         echo "Hello from host1" > /home/csync2-testdir/test1.txt
-        csync2 -xvr /home/csync2-testdir || true
+        echo "Running sync with maximum verbosity..."
+        csync2 -xvvvr /home/csync2-testdir || true
         sleep 2
         
         # Test 2: Multiple files
@@ -300,19 +343,22 @@ jobs:
         for i in {1..10}; do
           echo "File $i content" > /home/csync2-testdir/file$i.txt
         done
-        csync2 -xvr /home/csync2-testdir || true
+        echo "Running sync with maximum verbosity..."
+        csync2 -xvvvr /home/csync2-testdir || true
         sleep 2
         
         # Test 3: File modification
         echo "Test 3: Modifying file..."
         echo "Modified content" >> /home/csync2-testdir/test1.txt
-        csync2 -xvr /home/csync2-testdir || true
+        echo "Running sync with maximum verbosity..."
+        csync2 -xvvvr /home/csync2-testdir || true
         sleep 2
         
         # Test 4: File deletion
         echo "Test 4: Deleting file..."
         rm -f /home/csync2-testdir/file5.txt
-        csync2 -xvr /home/csync2-testdir || true
+        echo "Running sync with maximum verbosity..."
+        csync2 -xvvvr /home/csync2-testdir || true
         sleep 2
         
         # Test 5: Batch delete limit test
@@ -320,13 +366,23 @@ jobs:
         for i in {1..100}; do
           echo "Batch test $i" > /home/csync2-testdir/batch$i.txt
         done
-        csync2 -xvbr /home/csync2-testdir || true
+        echo "Running sync with maximum verbosity..."
+        csync2 -xvvvbr /home/csync2-testdir || true
         sleep 3
+        echo "Deleting all batch files..."
         rm -f /home/csync2-testdir/batch*.txt
-        csync2 -xvbr /home/csync2-testdir || true
+        echo "Running sync after batch delete..."
+        csync2 -xvvvbr /home/csync2-testdir || true
         sleep 3
         
         echo "=== Sync tests completed ==="
+        
+        # Final debug information
+        echo "=== Post-sync debug information ==="
+        echo "Database dirty entries:"
+        csync2 -M || echo "No dirty entries or command failed"
+        echo "Database hint entries:"
+        csync2 -H || echo "No hint entries or command failed"
         TESTEOF
         
         # Create verification script
@@ -489,8 +545,8 @@ jobs:
         
         # Install basic networking tools in containers
         echo "Installing network utilities..."
-        docker exec csync2-host1 dnf install -y iputils iproute hostname --quiet || true
-        docker exec csync2-host2 dnf install -y iputils iproute hostname --quiet || true
+        docker exec csync2-host1 dnf install -y iputils iproute hostname nmap-ncat --quiet || true
+        docker exec csync2-host2 dnf install -y iputils iproute hostname nmap-ncat --quiet || true
         
         # Check network connectivity
         echo "Testing network connectivity..."
@@ -528,7 +584,7 @@ jobs:
           # Install all csync2 dependencies
           dnf install -y sqlite sqlite-devel librsync librsync-devel \
                         inotify-tools hostname iputils iproute \
-                        gnutls libgcrypt openssl net-tools --quiet
+                        gnutls libgcrypt openssl net-tools nmap-ncat --quiet
           
           # Install csync2 RPM
           RPM_FILE=\$(ls /rpms/csync2-2.1.1-*.x86_64.rpm 2>/dev/null | grep -v debuginfo | head -n1)
@@ -555,20 +611,41 @@ jobs:
         echo "Completing setup on host2..."
         docker exec csync2-host2 bash /scripts/setup-csync2.sh host2 host1 10.10.10.2 skip_install
         
-        # Verify csync2 is running
-        echo "Checking csync2 status on both hosts..."
+        # Verify csync2 is running with comprehensive debug
+        echo "=== Checking csync2 status on both hosts ==="
         if [ "$SYSTEMD_MODE" = "true" ]; then
           docker exec csync2-host1 systemctl status csync2.socket --no-pager || true
           docker exec csync2-host2 systemctl status csync2.socket --no-pager || true
         else
+          echo "=== Host1 debug information ==="
           echo "Host1 csync2 process:"
           docker exec csync2-host1 ps aux | grep csync2 | grep -v grep || echo "No csync2 process found on host1"
+          echo "Host1 listening ports:"
+          docker exec csync2-host1 netstat -tln | grep 30865 || echo "Port 30865 not listening on host1"
+          echo "Host1 daemon log (last 20 lines):"
+          docker exec csync2-host1 tail -20 /tmp/csync2_daemon.log 2>/dev/null || echo "No daemon log found on host1"
+          
+          echo "=== Host2 debug information ==="
           echo "Host2 csync2 process:"
           docker exec csync2-host2 ps aux | grep csync2 | grep -v grep || echo "No csync2 process found on host2"
+          echo "Host2 listening ports:"
+          docker exec csync2-host2 netstat -tln | grep 30865 || echo "Port 30865 not listening on host2"
+          echo "Host2 daemon log (last 20 lines):"
+          docker exec csync2-host2 tail -20 /tmp/csync2_daemon.log 2>/dev/null || echo "No daemon log found on host2"
         fi
         
-        # Test connectivity
-        echo "Testing csync2 connectivity..."
+        # Test network connectivity
+        echo "=== Testing network connectivity ==="
+        echo "Host1 to Host2 connectivity:"
+        docker exec csync2-host1 nc -zv host2 30865 || echo "Cannot connect from host1 to host2:30865"
+        docker exec csync2-host1 nc -zv 10.10.10.3 30865 || echo "Cannot connect from host1 to 10.10.10.3:30865"
+        
+        echo "Host2 to Host1 connectivity:"
+        docker exec csync2-host2 nc -zv host1 30865 || echo "Cannot connect from host2 to host1:30865"
+        docker exec csync2-host2 nc -zv 10.10.10.2 30865 || echo "Cannot connect from host2 to 10.10.10.2:30865"
+        
+        # Test csync2 connectivity
+        echo "=== Testing csync2 connectivity ==="
         docker exec csync2-host1 csync2 -T host2 || echo "Note: Initial connection test may fail until first sync"
 
     - name: Run sync tests
@@ -580,7 +657,34 @@ jobs:
         
         # Run tests from host1
         echo "Starting synchronization tests..."
-        docker exec csync2-host1 bash /scripts/test-sync.sh || echo "Tests completed with warnings"
+        if ! docker exec csync2-host1 bash /scripts/test-sync.sh; then
+          echo "=== TESTS FAILED - Collecting debug information ==="
+          
+          echo "=== Daemon status on failure ==="
+          echo "Host1 daemon status:"
+          docker exec csync2-host1 ps aux | grep csync2 | grep -v grep || echo "No csync2 daemon on host1"
+          docker exec csync2-host1 netstat -tlnp | grep 30865 || echo "Port 30865 not listening on host1"
+          
+          echo "Host2 daemon status:"
+          docker exec csync2-host2 ps aux | grep csync2 | grep -v grep || echo "No csync2 daemon on host2"
+          docker exec csync2-host2 netstat -tlnp | grep 30865 || echo "Port 30865 not listening on host2"
+          
+          echo "=== Full daemon logs ==="
+          echo "Host1 daemon log:"
+          docker exec csync2-host1 cat /tmp/csync2_daemon.log 2>/dev/null || echo "No daemon log on host1"
+          
+          echo "Host2 daemon log:"
+          docker exec csync2-host2 cat /tmp/csync2_daemon.log 2>/dev/null || echo "No daemon log on host2"
+          
+          echo "=== Configuration files ==="
+          echo "Host1 config:"
+          docker exec csync2-host1 cat /etc/csync2/csync2.cfg || echo "No config on host1"
+          
+          echo "Host2 config:"
+          docker exec csync2-host2 cat /etc/csync2/csync2.cfg || echo "No config on host2"
+          
+          echo "Tests completed with errors"
+        fi
         
         # Give time for final sync
         echo "Waiting for final synchronization..."
@@ -588,7 +692,7 @@ jobs:
         
         # Force a final sync from host1
         echo "Running final sync..."
-        docker exec csync2-host1 csync2 -xvr /home/csync2-testdir || true
+        docker exec csync2-host1 csync2 -xvvvr /home/csync2-testdir || true
         
         # Verify on host2
         echo "Verifying synchronization on host2..."
