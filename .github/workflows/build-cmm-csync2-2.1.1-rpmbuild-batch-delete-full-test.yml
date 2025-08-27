@@ -83,9 +83,9 @@ jobs:
       run: |
         # Determine base image - just use almalinux:8 or almalinux:9
         if [[ '${{ matrix.os }}' == 'almalinux/8-init' ]]; then
-          BASE_IMAGE="almalinux:8"
+          BASE_IMAGE="almalinux/8-init"
         else
-          BASE_IMAGE="almalinux:9"
+          BASE_IMAGE="almalinux/9-init"
         fi
         
         cat > ${{ github.workspace }}/docker-compose-test.yml <<EOF
