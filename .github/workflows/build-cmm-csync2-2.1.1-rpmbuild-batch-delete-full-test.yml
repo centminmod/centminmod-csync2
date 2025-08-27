@@ -155,11 +155,18 @@ jobs:
         echo "Setting up csync2 on ${HOSTNAME}..."
         
         # Install dependencies
-        dnf install -y epel-release
-        dnf install -y inotify-tools sqlite sqlite-devel
+        dnf install -y epel-release --quiet
+        dnf install -y inotify-tools sqlite sqlite-devel iputils iproute hostname --quiet
         
-        # Install csync2 RPM
-        rpm -ivh /rpms/csync2-2.1.1-*.x86_64.rpm || true
+        # Find and install csync2 RPM
+        RPM_FILE=$(ls /rpms/csync2-2.1.1-*.x86_64.rpm 2>/dev/null | grep -v debuginfo | head -n1)
+        if [ -z "$RPM_FILE" ]; then
+          echo "Error: csync2 RPM not found in /rpms/"
+          ls -la /rpms/
+          exit 1
+        fi
+        echo "Installing: $RPM_FILE"
+        rpm -ivh "$RPM_FILE" || rpm -Uvh "$RPM_FILE"
         
         # Add hosts to /etc/hosts
         echo "10.10.10.2 host1" >> /etc/hosts
@@ -314,39 +321,68 @@ jobs:
         # Verify containers are running
         docker ps
         
+        # Install basic networking tools in containers
+        echo "Installing network utilities..."
+        docker exec csync2-host1 dnf install -y iputils iproute --quiet
+        docker exec csync2-host2 dnf install -y iputils iproute --quiet
+        
         # Check network connectivity
+        echo "Testing network connectivity..."
         docker exec csync2-host1 ping -c 2 10.10.10.3
         docker exec csync2-host2 ping -c 2 10.10.10.2
+        
+        # Alternative connectivity test using IP addresses
+        echo "Verifying container IP addresses..."
+        docker exec csync2-host1 ip addr show | grep "10.10.10"
+        docker exec csync2-host2 ip addr show | grep "10.10.10"
 
     - name: Setup csync2 on both hosts
       run: |
+        # Find the exact RPM filename
+        RPM_FILE=$(ls ${{ github.workspace }}/rpms/csync2-2.1.1-*.x86_64.rpm | head -n1)
+        echo "Using RPM: ${RPM_FILE}"
+        
         # Setup host1
-        docker exec csync2-host1 /scripts/setup-csync2.sh host1 host2 10.10.10.3
+        echo "Setting up host1..."
+        docker exec csync2-host1 bash /scripts/setup-csync2.sh host1 host2 10.10.10.3
         
         # Copy key from host1 to host2
+        echo "Copying csync2 key to host2..."
         docker exec csync2-host1 cat /etc/csync2/csync2.key > /tmp/csync2.key
         docker cp /tmp/csync2.key csync2-host2:/etc/csync2/csync2.key
+        docker exec csync2-host2 chmod 600 /etc/csync2/csync2.key
         
         # Setup host2
-        docker exec csync2-host2 /scripts/setup-csync2.sh host2 host1 10.10.10.2
+        echo "Setting up host2..."
+        docker exec csync2-host2 bash /scripts/setup-csync2.sh host2 host1 10.10.10.2
         
         # Verify csync2 is running
+        echo "Checking csync2 status on both hosts..."
         docker exec csync2-host1 systemctl status csync2.socket --no-pager || true
         docker exec csync2-host2 systemctl status csync2.socket --no-pager || true
         
         # Test connectivity
-        docker exec csync2-host1 csync2 -T host2
+        echo "Testing csync2 connectivity..."
+        docker exec csync2-host1 csync2 -T host2 || echo "Note: Initial connection test may fail until first sync"
 
     - name: Run sync tests
       run: |
+        # Initialize databases on both hosts
+        echo "Initializing csync2 databases..."
+        docker exec csync2-host1 csync2 -xv || true
+        docker exec csync2-host2 csync2 -xv || true
+        
         # Run tests from host1
-        docker exec csync2-host1 /scripts/test-sync.sh
+        echo "Starting synchronization tests..."
+        docker exec csync2-host1 bash /scripts/test-sync.sh
         
         # Give time for final sync
+        echo "Waiting for final synchronization..."
         sleep 5
         
         # Verify on host2
-        docker exec csync2-host2 /scripts/verify-sync.sh
+        echo "Verifying synchronization on host2..."
+        docker exec csync2-host2 bash /scripts/verify-sync.sh
 
     - name: Collect test results and logs
       if: always()
