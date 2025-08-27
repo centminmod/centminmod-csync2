@@ -169,177 +169,119 @@ jobs:
         chmod +x test-scripts/*.sh
         ls -la test-scripts/
 
+    - name: Install Sysbox
+      run: |
+        curl -LO https://downloads.nestybox.com/sysbox/releases/v0.6.7/sysbox-ce_0.6.7-0.linux_amd64.deb
+        sudo dpkg -i sysbox-ce_0.6.7-0.linux_amd64.deb || sudo apt-get install -f
+
     - name: Start Docker Compose environment
       run: |
         cd ${{ github.workspace }}
+        
+        # Update docker-compose to use sysbox runtime
+        cat > ${{ github.workspace }}/docker-compose-test.yml <<EOF
+        version: '3.8'
+        
+        networks:
+          csync2-test:
+            driver: bridge
+            ipam:
+              config:
+                - subnet: 10.10.10.0/24
+        
+        services:
+          host1:
+            image: ${{ matrix.os }}
+            hostname: host1
+            container_name: csync2-host1
+            runtime: sysbox-runc
+            privileged: true
+            networks:
+              csync2-test:
+                ipv4_address: 10.10.10.2
+            volumes:
+              - ./rpms:/rpms:ro
+              - ./test-scripts:/scripts:ro
+              - shared-csync2-testdir:/home/csync2-testdir
+              - /sys/fs/cgroup:/sys/fs/cgroup:ro
+              - /tmp/host1-run:/run
+            command: /usr/sbin/init
+            environment:
+              - container=docker
+            cap_add:
+              - SYS_ADMIN
+            security_opt:
+              - seccomp:unconfined
+              - label:disable
+              - apparmor:unconfined
+            
+          host2:
+            image: ${{ matrix.os }}
+            hostname: host2
+            container_name: csync2-host2
+            runtime: sysbox-runc
+            privileged: true
+            networks:
+              csync2-test:
+                ipv4_address: 10.10.10.3
+            volumes:
+              - ./rpms:/rpms:ro
+              - ./test-scripts:/scripts:ro
+              - shared-csync2-testdir2:/home/csync2-testdir
+              - /sys/fs/cgroup:/sys/fs/cgroup:ro
+              - /tmp/host2-run:/run
+            command: /usr/sbin/init
+            environment:
+              - container=docker
+            cap_add:
+              - SYS_ADMIN
+            security_opt:
+              - seccomp:unconfined
+              - label:disable
+              - apparmor:unconfined
+        
+        volumes:
+          shared-csync2-testdir:
+          shared-csync2-testdir2:
+        EOF
+
+        # Create temporary directories for /run mounts
+        mkdir -p /tmp/host1-run /tmp/host2-run
+        
+        # Start containers with Sysbox
         docker-compose -f docker-compose-test.yml up -d
         
-        # Give containers a moment to start
+        # Wait for systemd to initialize
+        echo "Waiting for systemd to initialize..."
         sleep 10
         
-        # Check container status immediately
-        echo "=== Initial container status ==="
-        docker ps -a
-        
-        # Function to check if container is actually healthy
-        check_container_health() {
-          local container=$1
-          local max_wait=30
-          local count=0
-          
-          while [ $count -lt $max_wait ]; do
-            local status=$(docker inspect --format='{{.State.Status}}' $container 2>/dev/null || echo "not_found")
-            local restarting=$(docker inspect --format='{{.State.Restarting}}' $container 2>/dev/null || echo "false")
-            
-            echo "Container $container status: $status, restarting: $restarting"
-            
-            if [ "$status" = "running" ] && [ "$restarting" = "false" ]; then
-              # Additional check - can we execute a command?
-              if docker exec $container echo "test" >/dev/null 2>&1; then
-                echo "✓ Container $container is healthy"
-                return 0
-              fi
-            fi
-            
-            if [ "$status" = "exited" ] || [ "$restarting" = "true" ]; then
-              echo "✗ Container $container is unhealthy (status: $status, restarting: $restarting)"
-              return 1
-            fi
-            
-            sleep 2
-            ((count++))
-          done
-          
-          echo "✗ Container $container health check timed out"
-          return 1
-        }
-        
-        # Check if containers are actually healthy (not just running)
-        CONTAINERS_HEALTHY=true
-        
-        if ! check_container_health csync2-host1; then
-          echo "WARNING: csync2-host1 is not healthy"
-          echo "=== csync2-host1 container logs ==="
-          docker logs csync2-host1 2>&1 | tail -50 || true
-          CONTAINERS_HEALTHY=false
-        fi
-        
-        if ! check_container_health csync2-host2; then
-          echo "WARNING: csync2-host2 is not healthy"
-          echo "=== csync2-host2 container logs ==="
-          docker logs csync2-host2 2>&1 | tail -50 || true
-          CONTAINERS_HEALTHY=false
-        fi
-        
-        # If containers failed, use fallback approach
-        if [ "$CONTAINERS_HEALTHY" = "false" ]; then
-          echo "=== Containers failed to start properly, using fallback approach ==="
-          
-          # Stop and remove failed containers
-          docker-compose -f docker-compose-test.yml down -v || true
-          sleep 2
-          
-          # Create network if it doesn't exist
-          docker network create --subnet=10.10.10.0/24 csync2-test-net 2>/dev/null || true
-          
-          # Create shared directories for volume mounting
-          mkdir -p ${{ github.workspace }}/shared-testdir
-          mkdir -p ${{ github.workspace }}/shared-testdir2
-          
-          # Try starting containers without some systemd requirements
-          echo "Starting containers with relaxed systemd configuration..."
-          docker run -d --name csync2-host1 \
-            --hostname host1 \
-            --network csync2-test-net \
-            --ip 10.10.10.2 \
-            --privileged \
-            --cap-add=SYS_ADMIN \
-            --cap-add=SYS_NICE \
-            --cap-add=SYS_RESOURCE \
-            --cap-add=NET_ADMIN \
-            --security-opt seccomp=unconfined \
-            --stop-signal SIGRTMIN+3 \
-            --tmpfs /run:rw,noexec,nosuid,size=100m \
-            --tmpfs /run/lock:rw,noexec,nosuid,size=100m \
-            --tmpfs /tmp:rw,noexec,nosuid,size=100m \
-            -v /sys/fs/cgroup:/sys/fs/cgroup:ro \
-            -v ${{ github.workspace }}/rpms:/rpms:ro \
-            -v ${{ github.workspace }}/test-scripts:/scripts:ro \
-            -v ${{ github.workspace }}/shared-testdir:/home/csync2-testdir \
-            -e container=docker \
-            ${{ matrix.os }} \
-            /usr/sbin/init
-            
-          docker run -d --name csync2-host2 \
-            --hostname host2 \
-            --network csync2-test-net \
-            --ip 10.10.10.3 \
-            --privileged \
-            --cap-add=SYS_ADMIN \
-            --cap-add=SYS_NICE \
-            --cap-add=SYS_RESOURCE \
-            --cap-add=NET_ADMIN \
-            --security-opt seccomp=unconfined \
-            --stop-signal SIGRTMIN+3 \
-            --tmpfs /run:rw,noexec,nosuid,size=100m \
-            --tmpfs /run/lock:rw,noexec,nosuid,size=100m \
-            --tmpfs /tmp:rw,noexec,nosuid,size=100m \
-            -v /sys/fs/cgroup:/sys/fs/cgroup:ro \
-            -v ${{ github.workspace }}/rpms:/rpms:ro \
-            -v ${{ github.workspace }}/test-scripts:/scripts:ro \
-            -v ${{ github.workspace }}/shared-testdir2:/home/csync2-testdir \
-            -e container=docker \
-            ${{ matrix.os }} \
-            /usr/sbin/init
-          
-          echo "=== Containers started with fallback configuration ==="
-          sleep 5
-          docker ps -a
-          
-          # Check if fallback containers are healthy
-          if check_container_health csync2-host1 && check_container_health csync2-host2; then
-            echo "✓ Fallback containers are healthy"
-            # Wait for systemd to initialize
-            echo "Waiting for systemd to initialize..."
-            for i in {1..30}; do
-              if docker exec csync2-host1 systemctl is-system-running 2>/dev/null | grep -qE "running|degraded"; then
-                echo "host1 systemd is ready"
-                break
-              fi
-              sleep 2
-            done
-            
-            for i in {1..30}; do
-              if docker exec csync2-host2 systemctl is-system-running 2>/dev/null | grep -qE "running|degraded"; then
-                echo "host2 systemd is ready"
-                break
-              fi
-              sleep 2
-            done
-          else
-            echo "CRITICAL: Even fallback containers failed to start properly"
-            echo "Container logs:"
-            docker logs csync2-host1 2>&1 | tail -20 || true
-            docker logs csync2-host2 2>&1 | tail -20 || true
-            exit 1
+        # Check systemd status
+        for i in {1..30}; do
+          if docker exec csync2-host1 systemctl is-system-running 2>/dev/null | grep -qE "running|degraded"; then
+            echo "host1 systemd is ready"
+            break
           fi
-          
-          echo "SYSTEMD_MODE=true" >> $GITHUB_ENV
-        else
-          echo "✓ Containers are healthy and running with systemd"
-          echo "SYSTEMD_MODE=true" >> $GITHUB_ENV
-        fi
+          echo "Waiting for host1 systemd... ($i/30)"
+          sleep 2
+        done
         
-        # Final verification
-        echo "=== Final container check ==="
-        docker ps
+        for i in {1..30}; do
+          if docker exec csync2-host2 systemctl is-system-running 2>/dev/null | grep -qE "running|degraded"; then
+            echo "host2 systemd is ready"
+            break
+          fi
+          echo "Waiting for host2 systemd... ($i/30)"
+          sleep 2
+        done
         
-        # Install basic networking tools in containers
+        echo "SYSTEMD_MODE=true" >> $GITHUB_ENV
+        
+        # Install basic networking tools
         echo "Installing network utilities..."
-        docker exec csync2-host1 dnf install -y iputils iproute hostname nmap-ncat --quiet || true
-        docker exec csync2-host2 dnf install -y iputils iproute hostname nmap-ncat --quiet || true
+        docker exec csync2-host1 dnf install -y iputils iproute hostname nmap-ncat --quiet
+        docker exec csync2-host2 dnf install -y iputils iproute hostname nmap-ncat --quiet
         
-        # Check network connectivity
+        # Test network connectivity
         echo "Testing network connectivity..."
         docker exec csync2-host1 ping -c 2 10.10.10.3 || echo "Note: ping to host2 failed"
         docker exec csync2-host2 ping -c 2 10.10.10.2 || echo "Note: ping to host1 failed"
