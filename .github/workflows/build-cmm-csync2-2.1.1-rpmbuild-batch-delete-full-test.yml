@@ -1,41 +1,4 @@
-# Create setup script
-        cat > ${{ github.workspace }}/test-scripts/setup-csync2.sh <<'EOF'
-        #!/bin/bash
-        set -e
-        
-        HOSTNAME=$1
-        OTHER_HOST=$2
-        OTHER_IP=$3
-        SKIP_INSTALL=$4
-        
-        echo "Setting up csync2 on ${HOSTNAME}..."
-        
-        # Only install if not skipped
-        if [ "$SKIP_INSTALL" != "skip_install" ]; then
-          # Determine DISTTAG based on OS release
-          if grep -q "release 8" /etc/redhat-release; then
-              DISTTAG='el8'
-              CRB_REPO="powertools"
-          elif grep -q "release 9" /etc/redhat-release; then
-              DISTTAG='el9'
-              CRB_REPO="crb"
-          fi
-          
-          # Install dependencies
-          dnf clean all
-          dnf install -y epel-release --quiet
-          dnf config-manager --set-enabled "${CRB_REPO}"
-          
-          # Install all required dependencies for csync2
-          dnf install -y \
-              sqlite \
-              sqlite-devel \
-              librsync \
-              librsync-devel \
-              inotify-tools \
-              iputils \
-              iproute \
-              hostnamename: 03 - CMM batch delete rpmbuild Csync2 2.1.1 Full Test + MariaDB
+name: 03 - CMM batch delete rpmbuild Csync2 2.1.1 Full Test + MariaDB
 
 on:
   workflow_dispatch:
@@ -104,7 +67,7 @@ jobs:
           # Copy and run build script
           cp /workspace/build-cmm-csync2-2.1.1-rpmbuild-batch-delete.sh /tmp
           chmod +x /tmp/build-cmm-csync2-2.1.1-rpmbuild-batch-delete.sh
-          /tmp/build-cmm-csync2-2.1.1-rpmbuild-batch-delete.sh ${DISTTAG}
+          /tmp/build-cmm-csync2-2.1.1-rpmbuild-batch-delete.sh \${DISTTAG}
 
           # Copy RPMs to workspace
           mkdir -p /workspace/rpms
@@ -191,7 +154,7 @@ jobs:
         mkdir -p ${{ github.workspace }}/test-scripts
         
         # Create setup script
-        cat > ${{ github.workspace }}/test-scripts/setup-csync2.sh <<'EOF'
+        cat > ${{ github.workspace }}/test-scripts/setup-csync2.sh <<'SETUPEOF'
         #!/bin/bash
         set -e
         
@@ -277,10 +240,10 @@ jobs:
         systemctl enable csync2.socket
         
         echo "Setup complete on ${HOSTNAME}"
-        EOF
+        SETUPEOF
         
         # Create sync test script
-        cat > ${{ github.workspace }}/test-scripts/test-sync.sh <<'EOF'
+        cat > ${{ github.workspace }}/test-scripts/test-sync.sh <<'TESTEOF'
         #!/bin/bash
         set -e
         
@@ -324,10 +287,10 @@ jobs:
         sleep 3
         
         echo "=== Sync tests completed ==="
-        EOF
+        TESTEOF
         
         # Create verification script
-        cat > ${{ github.workspace }}/test-scripts/verify-sync.sh <<'EOF'
+        cat > ${{ github.workspace }}/test-scripts/verify-sync.sh <<'VERIFYEOF'
         #!/bin/bash
         set -e
         
@@ -379,7 +342,7 @@ jobs:
           ls -la /home/csync2-testdir/
           exit 1
         fi
-        EOF
+        VERIFYEOF
         
         chmod +x ${{ github.workspace }}/test-scripts/*.sh
 
