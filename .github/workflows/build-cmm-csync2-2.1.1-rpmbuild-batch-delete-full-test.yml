@@ -263,54 +263,156 @@ jobs:
           systemctl start csync2.socket
           systemctl enable csync2.socket
         else
-          echo "Systemd not available, starting csync2 daemon directly..."
+          echo "Systemd not available, using inotify_csync.sh approach..."
           
           # Pre-daemon startup debug info
           echo "=== Pre-daemon startup debug info ==="
           echo "Hostname: ${HOSTNAME}"
-          echo "Working directory: $(pwd)"
           echo "csync2 version:"
           /usr/sbin/csync2 -v || true
-          echo "Configuration file contents:"
-          cat /etc/csync2/csync2.cfg || true
-          echo "Key file check:"
-          ls -la /etc/csync2/csync2.key || true
-          echo "SSL certificate check:"
-          ls -la /etc/csync2/csync2_ssl_*.pem || true
-          echo "Database directory:"
-          ls -la /var/lib/csync2/ || true
+          echo ""
           
-          # Start csync2 daemon in server mode with verbose logging
-          echo "Starting csync2 daemon in server mode..."
-          /usr/sbin/csync2 -C /etc/csync2/csync2.cfg -D ${HOSTNAME}.db3 -N ${HOSTNAME} -ii -vvv > /tmp/csync2_daemon.log 2>&1 &
-          DAEMON_PID=$!
-          echo "csync2 daemon started with PID ${DAEMON_PID}"
-          echo ${DAEMON_PID} > /var/run/csync2.pid
+          # Validate config and SSL files
+          echo "=== Configuration validation ==="
+          if [ -f /etc/csync2/csync2.cfg ]; then
+            echo "✓ Config file exists"
+            chmod 644 /etc/csync2/csync2.cfg
+          else
+            echo "✗ Config file missing!"
+            ls -la /etc/csync2/
+          fi
+          
+          if [ -f /etc/csync2/csync2_ssl_cert.pem ] && [ -f /etc/csync2/csync2_ssl_key.pem ]; then
+            echo "✓ SSL certificates exist"
+          else
+            echo "✗ SSL certificates missing!"
+            ls -la /etc/csync2/*.pem 2>/dev/null || true
+          fi
+          
+          if [ -f /etc/csync2/csync2.key ]; then
+            echo "✓ Key file exists"
+          else
+            echo "✗ Key file missing!"
+          fi
+          echo ""
+          
+          # Setup inotify_csync.sh
+          echo "=== Setting up inotify_csync.sh ==="
+          
+          # Check if inotify_csync.sh was installed by RPM
+          if [ -f /usr/share/doc/csync2/inotify_csync.sh ]; then
+            echo "✓ Found inotify_csync.sh from RPM"
+            cp /usr/share/doc/csync2/inotify_csync.sh /usr/local/bin/inotify_csync
+            chmod +x /usr/local/bin/inotify_csync
+          else
+            echo "✗ inotify_csync.sh not found in RPM docs, creating minimal version..."
+            
+            # Create a minimal version that just starts the daemon
+            cat > /usr/local/bin/inotify_csync <<'INOTIFY_EOF'
+          #!/bin/bash
+          # Minimal csync2 daemon wrapper for testing
+          
+          HOSTNAME="$2"
+          if [ -z "$HOSTNAME" ]; then
+            HOSTNAME=$(hostname)
+          fi
+          
+          echo "Starting csync2 daemon for ${HOSTNAME}..."
+          
+          # Start csync2 daemon
+          exec /usr/sbin/csync2 -ii -vvv -N ${HOSTNAME}
+          INOTIFY_EOF
+            chmod +x /usr/local/bin/inotify_csync
+          fi
+          
+          # Create required directories
+          mkdir -p /home/csync2-inotify/tmp
+          chmod 755 /home/csync2-inotify
+          
+          # Ensure sync directory exists
+          mkdir -p /home/csync2-testdir
+          
+          echo "Configuration file contents:"
+          cat /etc/csync2/csync2.cfg
+          echo ""
+          
+          # Start using inotify_csync wrapper
+          echo "=== Starting csync2 via inotify_csync ==="
+          echo "Command: /usr/local/bin/inotify_csync -N ${HOSTNAME}"
+          
+          # Check if full inotify_csync.sh is available and use it
+          if grep -q "inotifywait" /usr/local/bin/inotify_csync 2>/dev/null; then
+            echo "Using full inotify_csync.sh with file monitoring..."
+            # Full version - run in background
+            /usr/local/bin/inotify_csync -N ${HOSTNAME} > /tmp/inotify_csync.log 2>&1 &
+            DAEMON_PID=$!
+            echo "inotify_csync started with PID ${DAEMON_PID}"
+            
+            # Give it time to start the daemon
+            sleep 3
+            
+            # The daemon PID might be different, try to find it
+            ACTUAL_DAEMON_PID=$(pgrep -f "csync2.*-ii" | head -1)
+            if [ -n "$ACTUAL_DAEMON_PID" ]; then
+              echo "Found csync2 daemon PID: ${ACTUAL_DAEMON_PID}"
+              echo ${ACTUAL_DAEMON_PID} > /var/run/csync2.pid
+            else
+              echo ${DAEMON_PID} > /var/run/csync2.pid
+            fi
+          else
+            echo "Using minimal wrapper..."
+            # Minimal version - run directly
+            /usr/local/bin/inotify_csync -N ${HOSTNAME} > /tmp/csync2_daemon.log 2>&1 &
+            DAEMON_PID=$!
+            echo "csync2 daemon started with PID ${DAEMON_PID}"
+            echo ${DAEMON_PID} > /var/run/csync2.pid
+          fi
           
           # Give daemon time to start and check multiple ways
           sleep 3
           
           echo "=== Post-startup verification ==="
+          
+          # Check for running processes
           echo "Process check:"
-          if ps -p ${DAEMON_PID} > /dev/null; then
-            echo "✓ Daemon process ${DAEMON_PID} is running"
-            ps aux | grep csync2 | grep -v grep || true
-          else
-            echo "✗ Daemon process ${DAEMON_PID} is NOT running"
-            echo "Daemon startup log:"
-            cat /tmp/csync2_daemon.log || true
+          if pgrep -f "inotify_csync" > /dev/null; then
+            echo "✓ inotify_csync process is running"
+            ps aux | grep inotify_csync | grep -v grep || true
           fi
           
+          if pgrep -f "csync2.*-ii" > /dev/null; then
+            echo "✓ csync2 daemon is running"
+            ps aux | grep "csync2.*-ii" | grep -v grep || true
+          else
+            echo "✗ csync2 daemon is NOT running"
+            echo "Checking logs:"
+            echo "inotify_csync log (last 50 lines):"
+            tail -50 /tmp/inotify_csync.log 2>/dev/null || echo "No inotify log"
+            echo "csync2 daemon log (last 50 lines):"
+            tail -50 /tmp/csync2_daemon.log 2>/dev/null || echo "No daemon log"
+            echo "csync server log:"
+            cat /home/csync2-inotify/tmp/csync_server.log 2>/dev/null || echo "No server log"
+          fi
+          
+          echo ""
           echo "Port check:"
           if netstat -tln | grep -q 30865; then
             echo "✓ csync2 is listening on port 30865"
             netstat -tlnp | grep 30865 || true
           else
             echo "✗ csync2 is NOT listening on port 30865"
+            echo "All listening ports:"
+            netstat -tln
           fi
           
+          echo ""
           echo "Connection test to localhost:"
           nc -zv localhost 30865 || echo "Cannot connect to port 30865"
+          
+          echo ""
+          echo "inotify_csync directories check:"
+          ls -la /home/csync2-inotify/ 2>/dev/null || echo "No inotify directory"
+          ls -la /home/csync2-inotify/tmp/ 2>/dev/null || echo "No inotify tmp directory"
         fi
         
         echo "Setup complete on ${HOSTNAME}"
@@ -581,10 +683,11 @@ jobs:
           dnf install -y epel-release --quiet
           dnf config-manager --set-enabled \"\${CRB_REPO}\"
           
-          # Install all csync2 dependencies
+          # Install all csync2 dependencies and debugging tools
           dnf install -y sqlite sqlite-devel librsync librsync-devel \
                         inotify-tools hostname iputils iproute \
-                        gnutls libgcrypt openssl net-tools nmap-ncat --quiet
+                        gnutls libgcrypt openssl net-tools nmap-ncat \
+                        strace socat --quiet
           
           # Install csync2 RPM
           RPM_FILE=\$(ls /rpms/csync2-2.1.1-*.x86_64.rpm 2>/dev/null | grep -v debuginfo | head -n1)
@@ -669,7 +772,28 @@ jobs:
           docker exec csync2-host2 ps aux | grep csync2 | grep -v grep || echo "No csync2 daemon on host2"
           docker exec csync2-host2 netstat -tlnp | grep 30865 || echo "Port 30865 not listening on host2"
           
-          echo "=== Full daemon logs ==="
+          echo "=== inotify_csync logs ==="
+          echo "Host1 inotify_csync log:"
+          docker exec csync2-host1 cat /tmp/inotify_csync.log 2>/dev/null || echo "No inotify_csync log on host1"
+          
+          echo "Host2 inotify_csync log:"
+          docker exec csync2-host2 cat /tmp/inotify_csync.log 2>/dev/null || echo "No inotify_csync log on host2"
+          
+          echo "=== csync server logs (from inotify_csync) ==="
+          echo "Host1 csync server log:"
+          docker exec csync2-host1 cat /home/csync2-inotify/tmp/csync_server.log 2>/dev/null || echo "No server log on host1"
+          
+          echo "Host2 csync server log:"
+          docker exec csync2-host2 cat /home/csync2-inotify/tmp/csync_server.log 2>/dev/null || echo "No server log on host2"
+          
+          echo "=== inotify queue logs ==="
+          echo "Host1 inotify queue:"
+          docker exec csync2-host1 cat /home/csync2-inotify/tmp/inotify_queue.log 2>/dev/null || echo "No queue log on host1"
+          
+          echo "Host2 inotify queue:"
+          docker exec csync2-host2 cat /home/csync2-inotify/tmp/inotify_queue.log 2>/dev/null || echo "No queue log on host2"
+          
+          echo "=== Full daemon logs (fallback) ==="
           echo "Host1 daemon log:"
           docker exec csync2-host1 cat /tmp/csync2_daemon.log 2>/dev/null || echo "No daemon log on host1"
           
@@ -705,14 +829,24 @@ jobs:
         if [ "$SYSTEMD_MODE" = "true" ]; then
           docker exec csync2-host1 systemctl status csync2.socket --no-pager || true
         else
+          echo "Processes:"
           docker exec csync2-host1 ps aux | grep csync2 | grep -v grep || echo "No csync2 process on host1"
+          docker exec csync2-host1 ps aux | grep inotify | grep -v grep || echo "No inotify process on host1"
+          echo "Logs (last 20 lines):"
+          docker exec csync2-host1 tail -20 /tmp/inotify_csync.log 2>/dev/null || echo "No inotify log"
+          docker exec csync2-host1 tail -20 /home/csync2-inotify/tmp/csync_server.log 2>/dev/null || echo "No server log"
         fi
         echo
         echo "=== Host2 csync2 status ==="
         if [ "$SYSTEMD_MODE" = "true" ]; then
           docker exec csync2-host2 systemctl status csync2.socket --no-pager || true
         else
+          echo "Processes:"
           docker exec csync2-host2 ps aux | grep csync2 | grep -v grep || echo "No csync2 process on host2"
+          docker exec csync2-host2 ps aux | grep inotify | grep -v grep || echo "No inotify process on host2"
+          echo "Logs (last 20 lines):"
+          docker exec csync2-host2 tail -20 /tmp/inotify_csync.log 2>/dev/null || echo "No inotify log"
+          docker exec csync2-host2 tail -20 /home/csync2-inotify/tmp/csync_server.log 2>/dev/null || echo "No server log"
         fi
         echo
         echo "=== Host1 directory contents ==="
