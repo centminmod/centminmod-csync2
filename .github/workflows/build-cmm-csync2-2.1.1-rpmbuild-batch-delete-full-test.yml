@@ -81,7 +81,11 @@ jobs:
 
     - name: Create Docker Compose test setup
       run: |
-        cat > ${{ github.workspace }}/docker-compose-test.yml <<'EOF'
+        # Determine base image without -init suffix
+        BASE_IMAGE="${{ matrix.os }}"
+        BASE_IMAGE="${BASE_IMAGE%-init}"
+        
+        cat > ${{ github.workspace }}/docker-compose-test.yml <<EOF
         version: '3.8'
         
         networks:
@@ -93,7 +97,7 @@ jobs:
         
         services:
           host1:
-            image: ${{ matrix.os }}
+            image: ${BASE_IMAGE}
             hostname: host1
             container_name: csync2-host1
             privileged: true
@@ -104,21 +108,12 @@ jobs:
               - ./rpms:/rpms:ro
               - ./test-scripts:/scripts:ro
               - shared-csync2-testdir:/home/csync2-testdir
-              - /sys/fs/cgroup:/sys/fs/cgroup:ro
-            command: /sbin/init
+            command: /bin/bash -c "tail -f /dev/null"
             environment:
               - container=docker
-            tmpfs:
-              - /run
-              - /tmp
-            stop_signal: SIGRTMIN+3
-            cap_add:
-              - SYS_ADMIN
-            security_opt:
-              - seccomp:unconfined
             
           host2:
-            image: ${{ matrix.os }}
+            image: ${BASE_IMAGE}
             hostname: host2
             container_name: csync2-host2
             privileged: true
@@ -129,18 +124,9 @@ jobs:
               - ./rpms:/rpms:ro
               - ./test-scripts:/scripts:ro
               - shared-csync2-testdir2:/home/csync2-testdir
-              - /sys/fs/cgroup:/sys/fs/cgroup:ro
-            command: /sbin/init
+            command: /bin/bash -c "tail -f /dev/null"
             environment:
               - container=docker
-            tmpfs:
-              - /run
-              - /tmp
-            stop_signal: SIGRTMIN+3
-            cap_add:
-              - SYS_ADMIN
-            security_opt:
-              - seccomp:unconfined
             depends_on:
               - host1
         
@@ -192,7 +178,8 @@ jobs:
               iproute \
               hostname \
               gnutls \
-              libgcrypt --quiet
+              libgcrypt \
+              xinetd --quiet
           
           # Find and install csync2 RPM
           RPM_FILE=$(ls /rpms/csync2-2.1.1-*.x86_64.rpm 2>/dev/null | grep -v debuginfo | head -n1)
@@ -234,10 +221,19 @@ jobs:
         }
         CFGEOF
         
-        # Start csync2 socket
-        systemctl daemon-reload
-        systemctl start csync2.socket
-        systemctl enable csync2.socket
+        # Start csync2 in standalone mode (since systemd is not available)
+        echo "Starting csync2 in standalone mode..."
+        pkill csync2 || true
+        nohup csync2 -ii > /tmp/csync2.log 2>&1 &
+        sleep 2
+        
+        # Verify csync2 is running
+        if pgrep csync2; then
+          echo "csync2 is running"
+        else
+          echo "Failed to start csync2"
+          cat /tmp/csync2.log
+        fi
         
         echo "Setup complete on ${HOSTNAME}"
         SETUPEOF
@@ -353,10 +349,24 @@ jobs:
         
         # Wait for containers to be ready
         echo "Waiting for containers to initialize..."
-        sleep 10
+        sleep 5
+        
+        # Check container status
+        echo "Checking container status..."
+        docker ps -a
         
         # Verify containers are running
-        docker ps
+        if ! docker ps | grep -q csync2-host1; then
+          echo "ERROR: host1 container not running"
+          docker logs csync2-host1
+          exit 1
+        fi
+        
+        if ! docker ps | grep -q csync2-host2; then
+          echo "ERROR: host2 container not running"
+          docker logs csync2-host2
+          exit 1
+        fi
         
         # Install basic networking tools in containers
         echo "Installing network utilities..."
@@ -399,7 +409,7 @@ jobs:
           # Install all csync2 dependencies
           dnf install -y sqlite sqlite-devel librsync librsync-devel \
                         inotify-tools hostname iputils iproute \
-                        gnutls libgcrypt --quiet
+                        gnutls libgcrypt xinetd --quiet
           
           # Install csync2 RPM
           RPM_FILE=\$(ls /rpms/csync2-2.1.1-*.x86_64.rpm 2>/dev/null | grep -v debuginfo | head -n1)
@@ -428,8 +438,8 @@ jobs:
         
         # Verify csync2 is running
         echo "Checking csync2 status on both hosts..."
-        docker exec csync2-host1 systemctl status csync2.socket --no-pager || true
-        docker exec csync2-host2 systemctl status csync2.socket --no-pager || true
+        docker exec csync2-host1 pgrep -a csync2 || echo "csync2 not running on host1"
+        docker exec csync2-host2 pgrep -a csync2 || echo "csync2 not running on host2"
         
         # Test connectivity
         echo "Testing csync2 connectivity..."
@@ -462,10 +472,12 @@ jobs:
       if: always()
       run: |
         echo "=== Host1 csync2 status ==="
-        docker exec csync2-host1 systemctl status csync2.socket --no-pager || true
+        docker exec csync2-host1 pgrep -a csync2 || echo "csync2 not running on host1"
+        docker exec csync2-host1 cat /tmp/csync2.log 2>/dev/null || true
         echo
         echo "=== Host2 csync2 status ==="
-        docker exec csync2-host2 systemctl status csync2.socket --no-pager || true
+        docker exec csync2-host2 pgrep -a csync2 || echo "csync2 not running on host2"
+        docker exec csync2-host2 cat /tmp/csync2.log 2>/dev/null || true
         echo
         echo "=== Host1 directory contents ==="
         docker exec csync2-host1 ls -la /home/csync2-testdir/ || true
@@ -474,10 +486,10 @@ jobs:
         docker exec csync2-host2 ls -la /home/csync2-testdir/ || true
         echo
         echo "=== Host1 csync2 database ==="
-        docker exec csync2-host1 sqlite3 /var/lib/csync2/host1.db3 "SELECT COUNT(*) FROM file;" || true
+        docker exec csync2-host1 sqlite3 /var/lib/csync2/host1.db3 "SELECT COUNT(*) FROM file;" 2>/dev/null || echo "No database on host1"
         echo
         echo "=== Host2 csync2 database ==="
-        docker exec csync2-host2 sqlite3 /var/lib/csync2/host2.db3 "SELECT COUNT(*) FROM file;" || true
+        docker exec csync2-host2 sqlite3 /var/lib/csync2/host2.db3 "SELECT COUNT(*) FROM file;" 2>/dev/null || echo "No database on host2"
 
     - name: Cleanup Docker Compose
       if: always()
