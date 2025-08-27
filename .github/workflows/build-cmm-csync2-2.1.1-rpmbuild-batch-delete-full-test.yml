@@ -299,30 +299,59 @@ jobs:
           # Setup inotify_csync.sh
           echo "=== Setting up inotify_csync.sh ==="
           
-          # Check if inotify_csync.sh was installed by RPM
-          if [ -f /usr/share/doc/csync2/inotify_csync.sh ]; then
-            echo "✓ Found inotify_csync.sh from RPM"
-            cp /usr/share/doc/csync2/inotify_csync.sh /usr/local/bin/inotify_csync
-            chmod +x /usr/local/bin/inotify_csync
-          else
-            echo "✗ inotify_csync.sh not found in RPM docs, creating minimal version..."
-            
-            # Create a minimal version that just starts the daemon
-            cat > /usr/local/bin/inotify_csync <<'INOTIFY_EOF'
-          #!/bin/bash
-          # Minimal csync2 daemon wrapper for testing
+          # First, check what's actually in the RPM
+          echo "Checking RPM contents for inotify_csync.sh location:"
+          rpm -ql csync2 | grep inotify_csync.sh || echo "Not found via rpm -ql"
           
-          HOSTNAME="$2"
-          if [ -z "$HOSTNAME" ]; then
-            HOSTNAME=$(hostname)
+          # List all doc directories to debug
+          echo "Doc directories present:"
+          ls -la /usr/share/doc/ | grep csync2 || echo "No csync2 doc dirs found"
+          
+          # Check multiple possible locations
+          INOTIFY_SCRIPT=""
+          if [ -f /usr/share/doc/csync2/inotify_csync.sh ]; then
+            INOTIFY_SCRIPT="/usr/share/doc/csync2/inotify_csync.sh"
+            echo "✓ Found at /usr/share/doc/csync2/inotify_csync.sh"
+          elif [ -f /usr/share/doc/csync2-2.1.1/inotify_csync.sh ]; then
+            INOTIFY_SCRIPT="/usr/share/doc/csync2-2.1.1/inotify_csync.sh"
+            echo "✓ Found at /usr/share/doc/csync2-2.1.1/inotify_csync.sh"
+          else
+            # Check with wildcard for any version
+            FOUND_SCRIPT=$(ls /usr/share/doc/csync2*/inotify_csync.sh 2>/dev/null | head -1)
+            if [ -n "$FOUND_SCRIPT" ]; then
+              INOTIFY_SCRIPT="$FOUND_SCRIPT"
+              echo "✓ Found at $FOUND_SCRIPT"
+            fi
           fi
           
-          echo "Starting csync2 daemon for ${HOSTNAME}..."
-          
-          # Start csync2 daemon
-          exec /usr/sbin/csync2 -ii -vvv -N ${HOSTNAME}
-          INOTIFY_EOF
+          # Use the found script or create minimal fallback
+          if [ -n "$INOTIFY_SCRIPT" ]; then
+            echo "Copying inotify_csync.sh from RPM installation..."
+            cp "$INOTIFY_SCRIPT" /usr/local/bin/inotify_csync
             chmod +x /usr/local/bin/inotify_csync
+            echo "✓ Successfully installed inotify_csync.sh"
+          else
+            echo "⚠ inotify_csync.sh not found in RPM installation"
+            echo "Creating minimal daemon wrapper as fallback..."
+            
+            # Use echo instead of here-document to avoid YAML issues
+            echo '#!/bin/bash' > /usr/local/bin/inotify_csync
+            echo '# Minimal csync2 daemon wrapper for testing' >> /usr/local/bin/inotify_csync
+            echo 'HOSTNAME="${2:-$(hostname)}"' >> /usr/local/bin/inotify_csync
+            echo 'echo "Starting csync2 daemon for ${HOSTNAME}..."' >> /usr/local/bin/inotify_csync
+            echo 'exec /usr/sbin/csync2 -ii -vvv -N ${HOSTNAME}' >> /usr/local/bin/inotify_csync
+            chmod +x /usr/local/bin/inotify_csync
+            echo "✓ Created minimal fallback wrapper"
+          fi
+          
+          # Verify the script exists and is executable
+          if [ -x /usr/local/bin/inotify_csync ]; then
+            echo "✓ inotify_csync is ready at /usr/local/bin/inotify_csync"
+            # Show first few lines to verify it's the right script
+            echo "Script type: $(head -2 /usr/local/bin/inotify_csync | tail -1)"
+          else
+            echo "✗ Failed to setup inotify_csync!"
+            exit 1
           fi
           
           # Create required directories
