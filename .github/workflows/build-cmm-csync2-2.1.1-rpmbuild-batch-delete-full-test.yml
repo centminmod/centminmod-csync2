@@ -15,6 +15,11 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v5
 
+    - name: Install Sysbox
+      run: |
+        curl -LO https://downloads.nestybox.com/sysbox/releases/v0.6.7/sysbox-ce_0.6.7-0.linux_amd64.deb
+        sudo dpkg -i sysbox-ce_0.6.7-0.linux_amd64.deb || sudo apt-get install -f
+
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
     
@@ -168,11 +173,6 @@ jobs:
         # Just make sure they're executable
         chmod +x test-scripts/*.sh
         ls -la test-scripts/
-
-    - name: Install Sysbox
-      run: |
-        curl -LO https://downloads.nestybox.com/sysbox/releases/v0.6.7/sysbox-ce_0.6.7-0.linux_amd64.deb
-        sudo dpkg -i sysbox-ce_0.6.7-0.linux_amd64.deb || sudo apt-get install -f
 
     - name: Start Docker Compose environment
       run: |
