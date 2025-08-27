@@ -81,9 +81,12 @@ jobs:
 
     - name: Create Docker Compose test setup
       run: |
-        # Determine base image without -init suffix
-        BASE_IMAGE="${{ matrix.os }}"
-        BASE_IMAGE="${BASE_IMAGE%-init}"
+        # Determine base image - just use almalinux:8 or almalinux:9
+        if [[ '${{ matrix.os }}' == 'almalinux/8-init' ]]; then
+          BASE_IMAGE="almalinux:8"
+        else
+          BASE_IMAGE="almalinux:9"
+        fi
         
         cat > ${{ github.workspace }}/docker-compose-test.yml <<EOF
         version: '3.8'
