@@ -175,34 +175,69 @@ jobs:
         docker-compose -f docker-compose-test.yml up -d
         
         # Give containers a moment to start
-        sleep 5
+        sleep 10
         
         # Check container status immediately
         echo "=== Initial container status ==="
         docker ps -a
         
-        # Check if containers are actually running
-        CONTAINERS_RUNNING=true
-        if ! docker ps --format "table {{.Names}}" | grep -q csync2-host1; then
-          echo "WARNING: csync2-host1 is not running"
+        # Function to check if container is actually healthy
+        check_container_health() {
+          local container=$1
+          local max_wait=30
+          local count=0
+          
+          while [ $count -lt $max_wait ]; do
+            local status=$(docker inspect --format='{{.State.Status}}' $container 2>/dev/null || echo "not_found")
+            local restarting=$(docker inspect --format='{{.State.Restarting}}' $container 2>/dev/null || echo "false")
+            
+            echo "Container $container status: $status, restarting: $restarting"
+            
+            if [ "$status" = "running" ] && [ "$restarting" = "false" ]; then
+              # Additional check - can we execute a command?
+              if docker exec $container echo "test" >/dev/null 2>&1; then
+                echo "✓ Container $container is healthy"
+                return 0
+              fi
+            fi
+            
+            if [ "$status" = "exited" ] || [ "$restarting" = "true" ]; then
+              echo "✗ Container $container is unhealthy (status: $status, restarting: $restarting)"
+              return 1
+            fi
+            
+            sleep 2
+            ((count++))
+          done
+          
+          echo "✗ Container $container health check timed out"
+          return 1
+        }
+        
+        # Check if containers are actually healthy (not just running)
+        CONTAINERS_HEALTHY=true
+        
+        if ! check_container_health csync2-host1; then
+          echo "WARNING: csync2-host1 is not healthy"
           echo "=== csync2-host1 container logs ==="
-          docker logs csync2-host1 2>&1 || true
-          CONTAINERS_RUNNING=false
+          docker logs csync2-host1 2>&1 | tail -50 || true
+          CONTAINERS_HEALTHY=false
         fi
         
-        if ! docker ps --format "table {{.Names}}" | grep -q csync2-host2; then
-          echo "WARNING: csync2-host2 is not running"
+        if ! check_container_health csync2-host2; then
+          echo "WARNING: csync2-host2 is not healthy"
           echo "=== csync2-host2 container logs ==="
-          docker logs csync2-host2 2>&1 || true
-          CONTAINERS_RUNNING=false
+          docker logs csync2-host2 2>&1 | tail -50 || true
+          CONTAINERS_HEALTHY=false
         fi
         
-        # If containers failed with systemd, restart without systemd
-        if [ "$CONTAINERS_RUNNING" = "false" ]; then
-          echo "=== Containers failed to start with systemd, trying direct systemd approach ==="
+        # If containers failed, use fallback approach
+        if [ "$CONTAINERS_HEALTHY" = "false" ]; then
+          echo "=== Containers failed to start properly, using fallback approach ==="
           
           # Stop and remove failed containers
-          docker-compose -f docker-compose-test.yml down || true
+          docker-compose -f docker-compose-test.yml down -v || true
+          sleep 2
           
           # Create network if it doesn't exist
           docker network create --subnet=10.10.10.0/24 csync2-test-net 2>/dev/null || true
@@ -211,8 +246,8 @@ jobs:
           mkdir -p ${{ github.workspace }}/shared-testdir
           mkdir -p ${{ github.workspace }}/shared-testdir2
           
-          # Start containers with proper systemd configuration
-          echo "Starting containers with systemd support..."
+          # Try starting containers without some systemd requirements
+          echo "Starting containers with relaxed systemd configuration..."
           docker run -d --name csync2-host1 \
             --hostname host1 \
             --network csync2-test-net \
@@ -221,18 +256,17 @@ jobs:
             --cap-add=SYS_ADMIN \
             --cap-add=SYS_NICE \
             --cap-add=SYS_RESOURCE \
+            --cap-add=NET_ADMIN \
             --security-opt seccomp=unconfined \
-            --security-opt apparmor=unconfined \
             --stop-signal SIGRTMIN+3 \
-            --tmpfs /run \
-            --tmpfs /run/lock \
-            --tmpfs /tmp \
-            -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
+            --tmpfs /run:rw,noexec,nosuid,size=100m \
+            --tmpfs /run/lock:rw,noexec,nosuid,size=100m \
+            --tmpfs /tmp:rw,noexec,nosuid,size=100m \
+            -v /sys/fs/cgroup:/sys/fs/cgroup:ro \
             -v ${{ github.workspace }}/rpms:/rpms:ro \
             -v ${{ github.workspace }}/test-scripts:/scripts:ro \
             -v ${{ github.workspace }}/shared-testdir:/home/csync2-testdir \
             -e container=docker \
-            -e SYSTEMD_OFFLINE=0 \
             ${{ matrix.os }} \
             /usr/sbin/init
             
@@ -244,88 +278,59 @@ jobs:
             --cap-add=SYS_ADMIN \
             --cap-add=SYS_NICE \
             --cap-add=SYS_RESOURCE \
+            --cap-add=NET_ADMIN \
             --security-opt seccomp=unconfined \
-            --security-opt apparmor=unconfined \
             --stop-signal SIGRTMIN+3 \
-            --tmpfs /run \
-            --tmpfs /run/lock \
-            --tmpfs /tmp \
-            -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
+            --tmpfs /run:rw,noexec,nosuid,size=100m \
+            --tmpfs /run/lock:rw,noexec,nosuid,size=100m \
+            --tmpfs /tmp:rw,noexec,nosuid,size=100m \
+            -v /sys/fs/cgroup:/sys/fs/cgroup:ro \
             -v ${{ github.workspace }}/rpms:/rpms:ro \
             -v ${{ github.workspace }}/test-scripts:/scripts:ro \
             -v ${{ github.workspace }}/shared-testdir2:/home/csync2-testdir \
             -e container=docker \
-            -e SYSTEMD_OFFLINE=0 \
             ${{ matrix.os }} \
             /usr/sbin/init
           
-          echo "=== Containers restarted with systemd support ==="
+          echo "=== Containers started with fallback configuration ==="
+          sleep 5
           docker ps -a
           
-          # Wait for systemd to initialize in fallback containers
-          echo "Waiting for systemd to initialize in fallback containers..."
+          # Check if fallback containers are healthy
+          if check_container_health csync2-host1 && check_container_health csync2-host2; then
+            echo "✓ Fallback containers are healthy"
+            # Wait for systemd to initialize
+            echo "Waiting for systemd to initialize..."
+            for i in {1..30}; do
+              if docker exec csync2-host1 systemctl is-system-running 2>/dev/null | grep -qE "running|degraded"; then
+                echo "host1 systemd is ready"
+                break
+              fi
+              sleep 2
+            done
+            
+            for i in {1..30}; do
+              if docker exec csync2-host2 systemctl is-system-running 2>/dev/null | grep -qE "running|degraded"; then
+                echo "host2 systemd is ready"
+                break
+              fi
+              sleep 2
+            done
+          else
+            echo "CRITICAL: Even fallback containers failed to start properly"
+            echo "Container logs:"
+            docker logs csync2-host1 2>&1 | tail -20 || true
+            docker logs csync2-host2 2>&1 | tail -20 || true
+            exit 1
+          fi
           
-          # Wait for host1 systemd
-          for i in {1..45}; do
-            if docker exec csync2-host1 systemctl is-system-running 2>/dev/null | grep -qE "running|degraded"; then
-              echo "host1 systemd is ready"
-              break
-            fi
-            echo "Waiting for host1 systemd... ($i/45)"
-            sleep 2
-          done
-          
-          # Wait for host2 systemd
-          for i in {1..45}; do
-            if docker exec csync2-host2 systemctl is-system-running 2>/dev/null | grep -qE "running|degraded"; then
-              echo "host2 systemd is ready"
-              break
-            fi
-            echo "Waiting for host2 systemd... ($i/45)"
-            sleep 2
-          done
-          
-          # Verify systemd is working
-          echo "=== Verifying systemd functionality ==="
-          echo "Host1 systemd status:"
-          docker exec csync2-host1 systemctl --version || echo "systemctl not working on host1"
-          docker exec csync2-host1 systemctl is-system-running || echo "systemd not running on host1"
-          
-          echo "Host2 systemd status:"
-          docker exec csync2-host2 systemctl --version || echo "systemctl not working on host2"
-          docker exec csync2-host2 systemctl is-system-running || echo "systemd not running on host2"
-          
-          # Set flag for systemd mode
           echo "SYSTEMD_MODE=true" >> $GITHUB_ENV
         else
-          echo "Containers are running with systemd"
+          echo "✓ Containers are healthy and running with systemd"
           echo "SYSTEMD_MODE=true" >> $GITHUB_ENV
-          
-          # Wait for systemd to be ready
-          echo "Waiting for systemd to initialize..."
-          
-          # Wait for host1 systemd to be ready (reduced timeout)
-          for i in {1..30}; do
-            if docker exec csync2-host1 systemctl is-system-running 2>/dev/null | grep -qE "running|degraded"; then
-              echo "host1 systemd is ready"
-              break
-            fi
-            echo "Waiting for host1 systemd... ($i/30)"
-            sleep 2
-          done
-          
-          # Wait for host2 systemd to be ready (reduced timeout)
-          for i in {1..30}; do
-            if docker exec csync2-host2 systemctl is-system-running 2>/dev/null | grep -qE "running|degraded"; then
-              echo "host2 systemd is ready"
-              break
-            fi
-            echo "Waiting for host2 systemd... ($i/30)"
-            sleep 2
-          done
         fi
         
-        # Ensure containers are still running
+        # Final verification
         echo "=== Final container check ==="
         docker ps
         
