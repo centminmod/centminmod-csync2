@@ -130,18 +130,23 @@ chmod 755 /home/csync2-inotify
 # Kill any existing processes (with completely safe error handling)
 echo "Cleaning up any existing csync2 processes..."
 {
+  # Temporarily disable strict error checking for cleanup
+  set +e
+  
   # Check for processes first
   EXISTING_PROCESSES=$(pgrep -f csync2 2>/dev/null | wc -l)
   if [ "$EXISTING_PROCESSES" -gt 0 ]; then
     echo "Found $EXISTING_PROCESSES existing csync2 processes, terminating..."
     
     # Get process IDs
-    PIDS=$(pgrep -f csync2 2>/dev/null || echo "")
+    PIDS=$(pgrep -f csync2 2>/dev/null)
     if [ -n "$PIDS" ]; then
       echo "Terminating PIDs: $PIDS"
       for pid in $PIDS; do
         if kill -0 "$pid" 2>/dev/null; then
-          kill "$pid" 2>/dev/null || echo "Could not terminate PID $pid"
+          echo "Killing PID $pid..."
+          kill "$pid" 2>/dev/null
+          # Note: kill returns 143 on success for SIGTERM, which is normal
         fi
       done
       
@@ -149,12 +154,13 @@ echo "Cleaning up any existing csync2 processes..."
       sleep 2
       
       # Check if any are still running and force kill
-      REMAINING_PIDS=$(pgrep -f csync2 2>/dev/null || echo "")
+      REMAINING_PIDS=$(pgrep -f csync2 2>/dev/null)
       if [ -n "$REMAINING_PIDS" ]; then
         echo "Force killing remaining PIDs: $REMAINING_PIDS"
         for pid in $REMAINING_PIDS; do
           if kill -0 "$pid" 2>/dev/null; then
-            kill -9 "$pid" 2>/dev/null || echo "Could not force kill PID $pid"
+            echo "Force killing PID $pid..."
+            kill -9 "$pid" 2>/dev/null
           fi
         done
         sleep 1
@@ -164,8 +170,12 @@ echo "Cleaning up any existing csync2 processes..."
   else
     echo "No existing csync2 processes found"
   fi
-} 2>/dev/null || {
+  
+  # Re-enable strict error checking
+  set -e
+} || {
   echo "Process cleanup had some issues, but continuing..."
+  set -e  # Ensure we re-enable strict mode even on error
 }
 
 echo "Configuration file contents:"
