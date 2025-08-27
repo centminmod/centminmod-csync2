@@ -355,22 +355,22 @@ jobs:
         echo "Waiting for containers to initialize..."
         
         # Wait for host1 systemd to be ready
-        for i in {1..30}; do
+        for i in {1..60}; do
           if docker exec csync2-host1 systemctl is-system-running 2>/dev/null | grep -qE "running|degraded"; then
             echo "host1 systemd is ready"
             break
           fi
-          echo "Waiting for host1 systemd... ($i/30)"
+          echo "Waiting for host1 systemd... ($i/60)"
           sleep 2
         done
         
         # Wait for host2 systemd to be ready
-        for i in {1..30}; do
+        for i in {1..60}; do
           if docker exec csync2-host2 systemctl is-system-running 2>/dev/null | grep -qE "running|degraded"; then
             echo "host2 systemd is ready"
             break
           fi
-          echo "Waiting for host2 systemd... ($i/30)"
+          echo "Waiting for host2 systemd... ($i/60)"
           sleep 2
         done
         
