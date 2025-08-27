@@ -1,4 +1,41 @@
-name: 03 - CMM batch delete rpmbuild Csync2 2.1.1 Full Test + MariaDB
+# Create setup script
+        cat > ${{ github.workspace }}/test-scripts/setup-csync2.sh <<'EOF'
+        #!/bin/bash
+        set -e
+        
+        HOSTNAME=$1
+        OTHER_HOST=$2
+        OTHER_IP=$3
+        SKIP_INSTALL=$4
+        
+        echo "Setting up csync2 on ${HOSTNAME}..."
+        
+        # Only install if not skipped
+        if [ "$SKIP_INSTALL" != "skip_install" ]; then
+          # Determine DISTTAG based on OS release
+          if grep -q "release 8" /etc/redhat-release; then
+              DISTTAG='el8'
+              CRB_REPO="powertools"
+          elif grep -q "release 9" /etc/redhat-release; then
+              DISTTAG='el9'
+              CRB_REPO="crb"
+          fi
+          
+          # Install dependencies
+          dnf clean all
+          dnf install -y epel-release --quiet
+          dnf config-manager --set-enabled "${CRB_REPO}"
+          
+          # Install all required dependencies for csync2
+          dnf install -y \
+              sqlite \
+              sqlite-devel \
+              librsync \
+              librsync-devel \
+              inotify-tools \
+              iputils \
+              iproute \
+              hostnamename: 03 - CMM batch delete rpmbuild Csync2 2.1.1 Full Test + MariaDB
 
 on:
   workflow_dispatch:
@@ -104,6 +141,7 @@ jobs:
               - ./rpms:/rpms:ro
               - ./test-scripts:/scripts:ro
               - shared-csync2-testdir:/home/csync2-testdir
+              - /sys/fs/cgroup:/sys/fs/cgroup:ro
             command: /sbin/init
             environment:
               - container=docker
@@ -111,6 +149,10 @@ jobs:
               - /run
               - /tmp
             stop_signal: SIGRTMIN+3
+            cap_add:
+              - SYS_ADMIN
+            security_opt:
+              - seccomp:unconfined
             
           host2:
             image: ${{ matrix.os }}
@@ -124,6 +166,7 @@ jobs:
               - ./rpms:/rpms:ro
               - ./test-scripts:/scripts:ro
               - shared-csync2-testdir2:/home/csync2-testdir
+              - /sys/fs/cgroup:/sys/fs/cgroup:ro
             command: /sbin/init
             environment:
               - container=docker
@@ -131,6 +174,10 @@ jobs:
               - /run
               - /tmp
             stop_signal: SIGRTMIN+3
+            cap_add:
+              - SYS_ADMIN
+            security_opt:
+              - seccomp:unconfined
             depends_on:
               - host1
         
@@ -170,7 +217,19 @@ jobs:
           dnf clean all
           dnf install -y epel-release --quiet
           dnf config-manager --set-enabled "${CRB_REPO}"
-          dnf install -y inotify-tools sqlite sqlite-devel iputils iproute hostname librsync librsync-devel --quiet
+          
+          # Install all required dependencies for csync2
+          dnf install -y \
+              sqlite \
+              sqlite-devel \
+              librsync \
+              librsync-devel \
+              inotify-tools \
+              iputils \
+              iproute \
+              hostname \
+              gnutls \
+              libgcrypt --quiet
           
           # Find and install csync2 RPM
           RPM_FILE=$(ls /rpms/csync2-2.1.1-*.x86_64.rpm 2>/dev/null | grep -v debuginfo | head -n1)
@@ -183,9 +242,9 @@ jobs:
           rpm -ivh "$RPM_FILE" || rpm -Uvh "$RPM_FILE"
         fi
         
-        # Add hosts to /etc/hosts
-        echo "10.10.10.2 host1" >> /etc/hosts
-        echo "10.10.10.3 host2" >> /etc/hosts
+        # Add hosts to /etc/hosts (avoid duplicates)
+        grep -q "10.10.10.2 host1" /etc/hosts || echo "10.10.10.2 host1" >> /etc/hosts
+        grep -q "10.10.10.3 host2" /etc/hosts || echo "10.10.10.3 host2" >> /etc/hosts
         
         # Create test directory
         mkdir -p /home/csync2-testdir
@@ -362,7 +421,7 @@ jobs:
         docker exec csync2-host1 bash /scripts/setup-csync2.sh host1 host2 10.10.10.3
         
         # Pre-setup host2 to create directories and install csync2
-        echo "Pre-setup host2 (installing csync2)..."
+        echo "Pre-setup host2 (installing dependencies and csync2)..."
         docker exec csync2-host2 bash -c "
           # Install dependencies
           if grep -q 'release 8' /etc/redhat-release; then
@@ -373,14 +432,25 @@ jobs:
           dnf clean all
           dnf install -y epel-release --quiet
           dnf config-manager --set-enabled \"\${CRB_REPO}\"
-          dnf install -y librsync --quiet
+          
+          # Install all csync2 dependencies
+          dnf install -y sqlite sqlite-devel librsync librsync-devel \
+                        inotify-tools hostname iputils iproute \
+                        gnutls libgcrypt --quiet
           
           # Install csync2 RPM
           RPM_FILE=\$(ls /rpms/csync2-2.1.1-*.x86_64.rpm 2>/dev/null | grep -v debuginfo | head -n1)
+          if [ -z \"\$RPM_FILE\" ]; then
+            echo 'Error: csync2 RPM not found'
+            ls -la /rpms/
+            exit 1
+          fi
+          echo \"Installing: \$RPM_FILE\"
           rpm -ivh \"\$RPM_FILE\" || rpm -Uvh \"\$RPM_FILE\"
           
           # Ensure directory exists
           mkdir -p /etc/csync2
+          mkdir -p /home/csync2-testdir
         "
         
         # Copy key from host1 to host2
