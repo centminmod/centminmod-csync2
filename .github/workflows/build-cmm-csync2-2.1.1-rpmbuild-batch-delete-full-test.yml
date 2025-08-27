@@ -365,37 +365,46 @@ jobs:
           cat /etc/csync2/csync2.cfg
           echo ""
           
-          # Start using inotify_csync wrapper
-          echo "=== Starting csync2 via inotify_csync ==="
-          echo "Command: /usr/local/bin/inotify_csync -N ${HOSTNAME}"
+          # Create systemd service for inotify_csync
+          echo "=== Creating inotify_csync.service ==="
+          cat > /etc/systemd/system/inotify_csync.service <<SVCEOF
+          [Unit]
+          Description=Inotify Csync2 Sync Service
+          After=network.target
           
-          # Check if full inotify_csync.sh is available and use it
-          if grep -q "inotifywait" /usr/local/bin/inotify_csync 2>/dev/null; then
-            echo "Using full inotify_csync.sh with file monitoring..."
-            # Full version - run in background
-            /usr/local/bin/inotify_csync -N ${HOSTNAME} > /tmp/inotify_csync.log 2>&1 &
-            DAEMON_PID=$!
-            echo "inotify_csync started with PID ${DAEMON_PID}"
-            
-            # Give it time to start the daemon
-            sleep 3
-            
-            # The daemon PID might be different, try to find it
-            ACTUAL_DAEMON_PID=$(pgrep -f "csync2.*-ii" | head -1)
-            if [ -n "$ACTUAL_DAEMON_PID" ]; then
-              echo "Found csync2 daemon PID: ${ACTUAL_DAEMON_PID}"
-              echo ${ACTUAL_DAEMON_PID} > /var/run/csync2.pid
-            else
-              echo ${DAEMON_PID} > /var/run/csync2.pid
-            fi
-          else
-            echo "Using minimal wrapper..."
-            # Minimal version - run directly
-            /usr/local/bin/inotify_csync -N ${HOSTNAME} > /tmp/csync2_daemon.log 2>&1 &
-            DAEMON_PID=$!
-            echo "csync2 daemon started with PID ${DAEMON_PID}"
-            echo ${DAEMON_PID} > /var/run/csync2.pid
-          fi
+          [Service]
+          Type=simple
+          # Pre-start script to kill any running csync2 processes
+          ExecStartPre=/bin/bash -c 'pgrep -f csync2 && killall csync2 || true'
+          # Start the csync2 service
+          ExecStart=/usr/local/bin/inotify_csync -N ${HOSTNAME}
+          Restart=on-failure
+          RestartSec=5
+          User=root
+          WorkingDirectory=/home/csync2-inotify
+          StandardOutput=journal
+          StandardError=journal
+          
+          [Install]
+          WantedBy=multi-user.target
+          SVCEOF
+          
+          # Enable and start the service
+          echo "=== Starting inotify_csync service ==="
+          systemctl daemon-reload
+          systemctl enable inotify_csync.service
+          systemctl start inotify_csync.service
+          
+          # Wait for service to start
+          sleep 3
+          
+          # Check service status
+          echo "=== Service status ==="
+          systemctl status inotify_csync.service --no-pager -l || true
+          
+          # Check logs
+          echo "=== Service logs ==="
+          journalctl -u inotify_csync.service --no-pager | tail -25
           
           # Give daemon time to start and check multiple ways
           sleep 3
@@ -404,21 +413,16 @@ jobs:
           
           # Check for running processes
           echo "Process check:"
-          if pgrep -f "inotify_csync" > /dev/null; then
-            echo "✓ inotify_csync process is running"
+          if systemctl is-active inotify_csync.service > /dev/null 2>&1; then
+            echo "✓ inotify_csync service is active"
             ps aux | grep inotify_csync | grep -v grep || true
-          fi
-          
-          if pgrep -f "csync2.*-ii" > /dev/null; then
-            echo "✓ csync2 daemon is running"
             ps aux | grep "csync2.*-ii" | grep -v grep || true
           else
-            echo "✗ csync2 daemon is NOT running"
-            echo "Checking logs:"
-            echo "inotify_csync log (last 50 lines):"
-            tail -50 /tmp/inotify_csync.log 2>/dev/null || echo "No inotify log"
-            echo "csync2 daemon log (last 50 lines):"
-            tail -50 /tmp/csync2_daemon.log 2>/dev/null || echo "No daemon log"
+            echo "✗ inotify_csync service is NOT active"
+            echo "Checking service status:"
+            systemctl status inotify_csync.service --no-pager -l
+            echo "Service logs:"
+            journalctl -u inotify_csync.service --no-pager | tail -50
             echo "csync server log:"
             cat /home/csync2-inotify/tmp/csync_server.log 2>/dev/null || echo "No server log"
           fi
@@ -754,16 +758,16 @@ jobs:
           docker exec csync2-host1 ps aux | grep csync2 | grep -v grep || echo "No csync2 process found on host1"
           echo "Host1 listening ports:"
           docker exec csync2-host1 netstat -tln | grep 30865 || echo "Port 30865 not listening on host1"
-          echo "Host1 daemon log (last 20 lines):"
-          docker exec csync2-host1 tail -20 /tmp/csync2_daemon.log 2>/dev/null || echo "No daemon log found on host1"
+          echo "Host1 service logs (last 20 lines):"
+          docker exec csync2-host1 journalctl -u inotify_csync.service --no-pager | tail -20 || echo "No service logs on host1"
           
           echo "=== Host2 debug information ==="
           echo "Host2 csync2 process:"
           docker exec csync2-host2 ps aux | grep csync2 | grep -v grep || echo "No csync2 process found on host2"
           echo "Host2 listening ports:"
           docker exec csync2-host2 netstat -tln | grep 30865 || echo "Port 30865 not listening on host2"
-          echo "Host2 daemon log (last 20 lines):"
-          docker exec csync2-host2 tail -20 /tmp/csync2_daemon.log 2>/dev/null || echo "No daemon log found on host2"
+          echo "Host2 service logs (last 20 lines):"
+          docker exec csync2-host2 journalctl -u inotify_csync.service --no-pager | tail -20 || echo "No service logs on host2"
         fi
         
         # Test network connectivity
@@ -792,21 +796,23 @@ jobs:
         if ! docker exec csync2-host1 bash /scripts/test-sync.sh; then
           echo "=== TESTS FAILED - Collecting debug information ==="
           
-          echo "=== Daemon status on failure ==="
-          echo "Host1 daemon status:"
-          docker exec csync2-host1 ps aux | grep csync2 | grep -v grep || echo "No csync2 daemon on host1"
+          echo "=== Service status on failure ==="
+          echo "Host1 service status:"
+          docker exec csync2-host1 systemctl is-active inotify_csync.service || echo "Service not active on host1"
+          docker exec csync2-host1 ps aux | grep csync2 | grep -v grep || echo "No csync2 processes on host1"
           docker exec csync2-host1 netstat -tlnp | grep 30865 || echo "Port 30865 not listening on host1"
           
-          echo "Host2 daemon status:"
-          docker exec csync2-host2 ps aux | grep csync2 | grep -v grep || echo "No csync2 daemon on host2"
+          echo "Host2 service status:"
+          docker exec csync2-host2 systemctl is-active inotify_csync.service || echo "Service not active on host2"
+          docker exec csync2-host2 ps aux | grep csync2 | grep -v grep || echo "No csync2 processes on host2"
           docker exec csync2-host2 netstat -tlnp | grep 30865 || echo "Port 30865 not listening on host2"
           
-          echo "=== inotify_csync logs ==="
-          echo "Host1 inotify_csync log:"
-          docker exec csync2-host1 cat /tmp/inotify_csync.log 2>/dev/null || echo "No inotify_csync log on host1"
+          echo "=== inotify_csync service logs ==="
+          echo "Host1 inotify_csync service:"
+          docker exec csync2-host1 journalctl -u inotify_csync.service --no-pager | tail -50 || echo "No service logs on host1"
           
-          echo "Host2 inotify_csync log:"
-          docker exec csync2-host2 cat /tmp/inotify_csync.log 2>/dev/null || echo "No inotify_csync log on host2"
+          echo "Host2 inotify_csync service:"
+          docker exec csync2-host2 journalctl -u inotify_csync.service --no-pager | tail -50 || echo "No service logs on host2"
           
           echo "=== csync server logs (from inotify_csync) ==="
           echo "Host1 csync server log:"
@@ -822,12 +828,12 @@ jobs:
           echo "Host2 inotify queue:"
           docker exec csync2-host2 cat /home/csync2-inotify/tmp/inotify_queue.log 2>/dev/null || echo "No queue log on host2"
           
-          echo "=== Full daemon logs (fallback) ==="
-          echo "Host1 daemon log:"
-          docker exec csync2-host1 cat /tmp/csync2_daemon.log 2>/dev/null || echo "No daemon log on host1"
+          echo "=== Full service status ==="
+          echo "Host1 service status:"
+          docker exec csync2-host1 systemctl status inotify_csync.service --no-pager -l || echo "Service not running on host1"
           
-          echo "Host2 daemon log:"
-          docker exec csync2-host2 cat /tmp/csync2_daemon.log 2>/dev/null || echo "No daemon log on host2"
+          echo "Host2 service status:"
+          docker exec csync2-host2 systemctl status inotify_csync.service --no-pager -l || echo "Service not running on host2"
           
           echo "=== Configuration files ==="
           echo "Host1 config:"
