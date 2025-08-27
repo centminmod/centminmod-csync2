@@ -89,85 +89,88 @@ group testgroup {
 }
 CFGEOF
 
-# Start csync2 socket or daemon
-if command -v systemctl &> /dev/null && systemctl list-units &> /dev/null; then
-  echo "Using systemd to start csync2..."
-  systemctl daemon-reload
-  systemctl start csync2.socket
-  systemctl enable csync2.socket
+# Start csync2 daemon - DIRECT MODE
+echo "Using direct daemon mode (avoiding systemd/D-Bus issues)..."
+
+# Pre-daemon startup debug info
+echo "=== Pre-daemon startup debug info ==="
+echo "Hostname: ${HOSTNAME}"
+echo "csync2 version:"
+/usr/sbin/csync2 -v || true
+echo ""
+
+# Validate config and SSL files
+echo "=== Configuration validation ==="
+if [ -f /etc/csync2/csync2.cfg ]; then
+  echo "✓ Config file exists"
+  chmod 644 /etc/csync2/csync2.cfg
 else
-  echo "Systemd not available, using inotify_csync.sh approach..."
-  
-  # Setup inotify_csync.sh
-  echo "=== Setting up inotify_csync.sh ==="
-  
-  # Check multiple possible locations for inotify_csync.sh
-  INOTIFY_SCRIPT=""
-  for location in \
-    "/usr/share/doc/csync2/inotify_csync.sh" \
-    "/usr/share/doc/csync2-2.1.1/inotify_csync.sh" \
-    $(ls /usr/share/doc/csync2*/inotify_csync.sh 2>/dev/null | head -1)
-  do
-    if [ -f "$location" ]; then
-      INOTIFY_SCRIPT="$location"
-      echo "✓ Found at $location"
-      break
-    fi
-  done
-  
-  # Use found script or create fallback
-  if [ -n "$INOTIFY_SCRIPT" ]; then
-    echo "Copying inotify_csync.sh from RPM installation..."
-    cp "$INOTIFY_SCRIPT" /usr/local/bin/inotify_csync
-    chmod +x /usr/local/bin/inotify_csync
-    echo "✓ Successfully installed inotify_csync.sh"
-  else
-    echo "⚠ inotify_csync.sh not found, creating minimal daemon wrapper..."
-    cat > /usr/local/bin/inotify_csync << 'WRAPPER_EOF'
-#!/bin/bash
-# Minimal csync2 daemon wrapper for testing
-HOSTNAME="${2:-$(hostname)}"
-echo "Starting csync2 daemon for ${HOSTNAME}..."
-exec /usr/sbin/csync2 -ii -vvv -N ${HOSTNAME}
-WRAPPER_EOF
-    chmod +x /usr/local/bin/inotify_csync
-    echo "✓ Created minimal fallback wrapper"
-  fi
-  
-  # Create required directories
-  mkdir -p /home/csync2-inotify/tmp
-  chmod 755 /home/csync2-inotify
-  
-  # Create systemd service
-  cat > /etc/systemd/system/inotify_csync.service << 'SERVICE_EOF'
-[Unit]
-Description=Inotify Csync2 Sync Service
-After=network.target
-
-[Service]
-Type=simple
-ExecStartPre=/bin/bash -c 'pgrep -f csync2 && killall csync2 || true'
-ExecStart=/usr/local/bin/inotify_csync -N %H
-Restart=on-failure
-RestartSec=5
-User=root
-WorkingDirectory=/home/csync2-inotify
-StandardOutput=journal
-StandardError=journal
-
-[Install]
-WantedBy=multi-user.target
-SERVICE_EOF
-  
-  # Start service
-  systemctl daemon-reload
-  systemctl enable inotify_csync.service
-  systemctl start inotify_csync.service
-  
-  # Wait and verify
-  sleep 3
-  systemctl status inotify_csync.service --no-pager -l || true
-  journalctl -u inotify_csync.service --no-pager | tail -25
+  echo "✗ Config file missing!"
+  ls -la /etc/csync2/
 fi
 
-echo "Setup complete on ${HOSTNAME}"  
+if [ -f /etc/csync2/csync2_ssl_cert.pem ] && [ -f /etc/csync2/csync2_ssl_key.pem ]; then
+  echo "✓ SSL certificates exist"
+else
+  echo "✗ SSL certificates missing!"
+  ls -la /etc/csync2/*.pem 2>/dev/null || true
+fi
+
+if [ -f /etc/csync2/csync2.key ]; then
+  echo "✓ Key file exists"
+else
+  echo "✗ Key file missing!"
+fi
+echo ""
+
+# Create required directories
+mkdir -p /home/csync2-inotify/tmp
+chmod 755 /home/csync2-inotify
+
+# Kill any existing processes
+echo "Cleaning up any existing csync2 processes..."
+pkill -f csync2 || true
+sleep 1
+
+echo "Configuration file contents:"
+cat /etc/csync2/csync2.cfg
+echo ""
+
+# Start csync2 daemon directly without any systemd dependency
+echo "Starting csync2 daemon directly..."
+/usr/sbin/csync2 -ii -vvv -N "${HOSTNAME}" > /tmp/csync2_daemon.log 2>&1 &
+DAEMON_PID=$!
+echo $DAEMON_PID > /tmp/csync2_daemon.pid
+echo "Started csync2 daemon with PID $DAEMON_PID"
+
+# Wait and verify startup
+sleep 5
+
+echo "=== Post-startup verification ==="
+if kill -0 $DAEMON_PID 2>/dev/null; then
+  echo "✓ Daemon running (PID: $DAEMON_PID)"
+else
+  echo "✗ Daemon not running"
+  echo "Daemon log:"
+  cat /tmp/csync2_daemon.log || echo "No log file found"
+fi
+
+echo "Process check:"
+ps aux | grep csync2 | grep -v grep || echo "No csync2 processes found"
+
+echo "Port check:"
+if netstat -tln | grep -q 30865; then
+  echo "✓ Port 30865 is listening"
+  netstat -tlnp | grep 30865 || true
+else
+  echo "✗ Port 30865 not listening"
+  echo "All listening ports:"
+  netstat -tln
+  echo "Daemon log:"
+  cat /tmp/csync2_daemon.log || echo "No log file"
+fi
+
+echo "Connection test to localhost:"
+nc -zv localhost 30865 2>&1 || echo "Cannot connect to port 30865"
+
+echo "Setup complete on ${HOSTNAME}"
