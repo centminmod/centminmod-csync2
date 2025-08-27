@@ -90,11 +90,15 @@ dnf install --allowerasing -y \
   texlive-latex
 
 # Download the master branch source from GitHub
-wget "https://github.com/centminmod/csync2/archive/refs/heads/2.1-2025-batch-delete-limit.tar.gz" -O "csync2-${CSYNC2_VER}.tar.gz"
-tar -xzf "csync2-${CSYNC2_VER}.tar.gz"
+wget "https://github.com/centminmod/csync2/archive/refs/heads/2.1-2025-batch-delete-limit.tar.gz" -O "csync2-${CSYNC2_VER}-orig.tar.gz"
+tar -xzf "csync2-${CSYNC2_VER}-orig.tar.gz"
 
 # Rename the extracted directory to match the spec file's expectation
 mv csync2-2.1-2025-batch-delete-limit csync2-${CSYNC2_VER}
+
+# Repack the tarball with the correct directory name
+tar -czf "csync2-${CSYNC2_VER}.tar.gz" "csync2-${CSYNC2_VER}"
+
 cd "csync2-${CSYNC2_VER}"
 
 # Prepare for building the RPM
