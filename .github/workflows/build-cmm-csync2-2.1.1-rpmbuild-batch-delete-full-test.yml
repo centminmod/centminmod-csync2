@@ -577,6 +577,16 @@ jobs:
         
         chmod +x ${{ github.workspace }}/test-scripts/*.sh
 
+        # ---- Dedent generated files (Option 2) ----
+        # Remove exactly 8 leading spaces from each generated file so inner heredoc closers
+        # like SVCEOF / SETUPEOF / TESTEOF / VERIFYEOF land at column 1 in the generated files.
+        # If your YAML indentation differs, change the number of spaces after ^ accordingly.
+        sed -i 's/^        //' ${{ github.workspace }}/test-scripts/*.sh ${{ github.workspace }}/docker-compose-test.yml || true
+
+        # Quick verification: print lines that are exactly the heredoc closing tokens at start-of-line
+        # (you should see lines like "SVCEOF" or "SETUPEOF" with no leading spaces)
+        grep -n -E '^(SVCEOF|SETUPEOF|TESTEOF|VERIFYEOF|EOF)$' ${{ github.workspace }}/test-scripts/* ${{ github.workspace }}/docker-compose-test.yml || true
+
     - name: Start Docker Compose environment
       run: |
         cd ${{ github.workspace }}
