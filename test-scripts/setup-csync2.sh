@@ -127,10 +127,22 @@ echo ""
 mkdir -p /home/csync2-inotify/tmp
 chmod 755 /home/csync2-inotify
 
-# Kill any existing processes
+# Kill any existing processes (with proper error handling)
 echo "Cleaning up any existing csync2 processes..."
-pkill -f csync2 || true
-sleep 1
+if pgrep -f csync2 > /dev/null 2>&1; then
+  echo "Found existing csync2 processes, terminating..."
+  pkill -f csync2 || true
+  sleep 2
+  # Force kill if still running
+  if pgrep -f csync2 > /dev/null 2>&1; then
+    echo "Force killing remaining csync2 processes..."
+    pkill -9 -f csync2 || true
+    sleep 1
+  fi
+  echo "Process cleanup completed"
+else
+  echo "No existing csync2 processes found"
+fi
 
 echo "Configuration file contents:"
 cat /etc/csync2/csync2.cfg
@@ -138,7 +150,7 @@ echo ""
 
 # Start csync2 daemon directly without any systemd dependency
 echo "Starting csync2 daemon directly..."
-/usr/sbin/csync2 -ii -vvv -N "${HOSTNAME}" > /tmp/csync2_daemon.log 2>&1 &
+nohup /usr/sbin/csync2 -ii -vvv -N "${HOSTNAME}" > /tmp/csync2_daemon.log 2>&1 &
 DAEMON_PID=$!
 echo $DAEMON_PID > /tmp/csync2_daemon.pid
 echo "Started csync2 daemon with PID $DAEMON_PID"
