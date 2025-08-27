@@ -94,7 +94,7 @@ wget "https://github.com/centminmod/csync2/archive/refs/heads/2.1-2025-batch-del
 tar -xzf "csync2-${CSYNC2_VER}.tar.gz"
 
 # Rename the extracted directory to match the spec file's expectation
-mv csync2-2.1 csync2-${CSYNC2_VER}
+mv csync2-2.1-2025-batch-delete-limit csync2-${CSYNC2_VER}
 cd "csync2-${CSYNC2_VER}"
 
 # Prepare for building the RPM
