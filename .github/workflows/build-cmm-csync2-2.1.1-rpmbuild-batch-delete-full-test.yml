@@ -1,0 +1,387 @@
+name: 03 - CMM batch delete rpmbuild Csync2 2.1.1 Full Test + MariaDB
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        os: ['almalinux/9-init', 'almalinux/8-init']
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v5
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Install Docker Compose
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y docker-compose
+
+    - name: Set OS variables
+      run: |
+        if [[ '${{ matrix.os }}' == 'almalinux/8-init' ]]; then
+          echo "DISTTAG=el8" >> $GITHUB_ENV
+          echo "OS_VERSION=8" >> $GITHUB_ENV
+        else
+          echo "DISTTAG=el9" >> $GITHUB_ENV
+          echo "OS_VERSION=9" >> $GITHUB_ENV
+        fi
+
+    - name: Build RPMs in container
+      run: |
+        mkdir -p ${{ github.workspace }}/rpms
+        docker pull ${{ matrix.os }}
+        docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace ${{ matrix.os }} /bin/bash -c "
+          dnf install -y --skip-broken \
+                  initscripts \
+                  systemd-sysv \
+                  systemd-devel \
+                  hostname \
+                  systemd \
+                  dos2unix \
+                  curl \
+                  python3 \
+                  iptables \
+                  iproute \
+                  kmod \
+                  procps-ng \
+                  sudo \
+                  udev --allowerasing
+
+          systemctl unmask \
+                  systemd-remount-fs.service \
+                  dev-hugepages.mount \
+                  sys-fs-fuse-connections.mount \
+                  systemd-logind.service \
+                  getty.target \
+                  console-getty.service
+
+          echo 'ReadKMsg=no' >> /etc/systemd/journald.conf
+          
+          # Copy and run build script
+          cp /workspace/build-cmm-csync2-2.1.1-rpmbuild-batch-delete.sh /tmp
+          chmod +x /tmp/build-cmm-csync2-2.1.1-rpmbuild-batch-delete.sh
+          /tmp/build-cmm-csync2-2.1.1-rpmbuild-batch-delete.sh ${DISTTAG}
+
+          # Copy RPMs to workspace
+          mkdir -p /workspace/rpms
+          cp /root/rpmbuild/RPMS/x86_64/*.rpm /workspace/rpms/
+          cp /root/rpmbuild/SRPMS/*.rpm /workspace/rpms/
+          cp /root/rpmbuild/SPECS/csync2.spec /workspace/rpms/
+          
+          echo
+          ls -lah /workspace/rpms/
+        "
+
+    - name: Create Docker Compose test setup
+      run: |
+        cat > ${{ github.workspace }}/docker-compose-test.yml <<'EOF'
+        version: '3.8'
+        
+        networks:
+          csync2-test:
+            driver: bridge
+            ipam:
+              config:
+                - subnet: 10.10.10.0/24
+        
+        services:
+          host1:
+            image: ${{ matrix.os }}
+            hostname: host1
+            container_name: csync2-host1
+            privileged: true
+            networks:
+              csync2-test:
+                ipv4_address: 10.10.10.2
+            volumes:
+              - ./rpms:/rpms:ro
+              - ./test-scripts:/scripts:ro
+              - shared-csync2-testdir:/home/csync2-testdir
+            command: /sbin/init
+            environment:
+              - container=docker
+            tmpfs:
+              - /run
+              - /tmp
+            stop_signal: SIGRTMIN+3
+            
+          host2:
+            image: ${{ matrix.os }}
+            hostname: host2
+            container_name: csync2-host2
+            privileged: true
+            networks:
+              csync2-test:
+                ipv4_address: 10.10.10.3
+            volumes:
+              - ./rpms:/rpms:ro
+              - ./test-scripts:/scripts:ro
+              - shared-csync2-testdir2:/home/csync2-testdir
+            command: /sbin/init
+            environment:
+              - container=docker
+            tmpfs:
+              - /run
+              - /tmp
+            stop_signal: SIGRTMIN+3
+            depends_on:
+              - host1
+        
+        volumes:
+          shared-csync2-testdir:
+          shared-csync2-testdir2:
+        EOF
+
+    - name: Create test scripts
+      run: |
+        mkdir -p ${{ github.workspace }}/test-scripts
+        
+        # Create setup script
+        cat > ${{ github.workspace }}/test-scripts/setup-csync2.sh <<'EOF'
+        #!/bin/bash
+        set -e
+        
+        HOSTNAME=$1
+        OTHER_HOST=$2
+        OTHER_IP=$3
+        
+        echo "Setting up csync2 on ${HOSTNAME}..."
+        
+        # Install dependencies
+        dnf install -y epel-release
+        dnf install -y inotify-tools sqlite sqlite-devel
+        
+        # Install csync2 RPM
+        rpm -ivh /rpms/csync2-2.1.1-*.x86_64.rpm || true
+        
+        # Add hosts to /etc/hosts
+        echo "10.10.10.2 host1" >> /etc/hosts
+        echo "10.10.10.3 host2" >> /etc/hosts
+        
+        # Create test directory
+        mkdir -p /home/csync2-testdir
+        
+        # Generate csync2 key (only on host1)
+        if [ "$HOSTNAME" = "host1" ]; then
+          csync2 -k /etc/csync2/csync2.key
+          chmod 600 /etc/csync2/csync2.key
+        fi
+        
+        # Create csync2 config
+        cat > /etc/csync2/csync2.cfg <<CFGEOF
+        group testgroup {
+            host host1;
+            host host2;
+            
+            key /etc/csync2/csync2.key;
+            
+            include /home/csync2-testdir;
+            
+            auto younger;
+            
+            batch_delete_limit 20000;
+        }
+        CFGEOF
+        
+        # Start csync2 socket
+        systemctl daemon-reload
+        systemctl start csync2.socket
+        systemctl enable csync2.socket
+        
+        echo "Setup complete on ${HOSTNAME}"
+        EOF
+        
+        # Create sync test script
+        cat > ${{ github.workspace }}/test-scripts/test-sync.sh <<'EOF'
+        #!/bin/bash
+        set -e
+        
+        echo "=== Starting csync2 sync tests ==="
+        
+        # Test 1: Basic file sync
+        echo "Test 1: Creating test file on host1..."
+        echo "Hello from host1" > /home/csync2-testdir/test1.txt
+        csync2 -xv
+        sleep 2
+        
+        # Test 2: Multiple files
+        echo "Test 2: Creating multiple files..."
+        for i in {1..10}; do
+          echo "File $i content" > /home/csync2-testdir/file$i.txt
+        done
+        csync2 -xv
+        sleep 2
+        
+        # Test 3: File modification
+        echo "Test 3: Modifying file..."
+        echo "Modified content" >> /home/csync2-testdir/test1.txt
+        csync2 -xv
+        sleep 2
+        
+        # Test 4: File deletion
+        echo "Test 4: Deleting file..."
+        rm -f /home/csync2-testdir/file5.txt
+        csync2 -xv
+        sleep 2
+        
+        # Test 5: Batch delete limit test
+        echo "Test 5: Testing batch delete limit..."
+        for i in {1..100}; do
+          echo "Batch test $i" > /home/csync2-testdir/batch$i.txt
+        done
+        csync2 -xvb
+        sleep 3
+        rm -f /home/csync2-testdir/batch*.txt
+        csync2 -xvb
+        sleep 3
+        
+        echo "=== Sync tests completed ==="
+        EOF
+        
+        # Create verification script
+        cat > ${{ github.workspace }}/test-scripts/verify-sync.sh <<'EOF'
+        #!/bin/bash
+        set -e
+        
+        echo "=== Verifying sync on host2 ==="
+        
+        # Check if test files exist
+        ERRORS=0
+        
+        # Test 1 verification
+        if [ -f /home/csync2-testdir/test1.txt ]; then
+          echo "✓ Test 1: test1.txt exists"
+          content=$(cat /home/csync2-testdir/test1.txt)
+          if [[ "$content" == *"Modified content"* ]]; then
+            echo "✓ Test 3: File modification synced"
+          else
+            echo "✗ Test 3: File modification NOT synced"
+            ((ERRORS++))
+          fi
+        else
+          echo "✗ Test 1: test1.txt missing"
+          ((ERRORS++))
+        fi
+        
+        # Test 2 verification
+        file_count=$(ls -1 /home/csync2-testdir/file*.txt 2>/dev/null | wc -l)
+        if [ "$file_count" -eq 9 ]; then
+          echo "✓ Test 2 & 4: Correct number of files (9, file5.txt deleted)"
+        else
+          echo "✗ Test 2 & 4: Expected 9 files, found $file_count"
+          ((ERRORS++))
+        fi
+        
+        # Test 5 verification
+        batch_count=$(ls -1 /home/csync2-testdir/batch*.txt 2>/dev/null | wc -l)
+        if [ "$batch_count" -eq 0 ]; then
+          echo "✓ Test 5: Batch files deleted successfully"
+        else
+          echo "✗ Test 5: Found $batch_count batch files, expected 0"
+          ((ERRORS++))
+        fi
+        
+        echo
+        echo "=== Verification Results ==="
+        if [ "$ERRORS" -eq 0 ]; then
+          echo "SUCCESS: All tests passed!"
+          exit 0
+        else
+          echo "FAILURE: $ERRORS test(s) failed"
+          ls -la /home/csync2-testdir/
+          exit 1
+        fi
+        EOF
+        
+        chmod +x ${{ github.workspace }}/test-scripts/*.sh
+
+    - name: Start Docker Compose environment
+      run: |
+        cd ${{ github.workspace }}
+        docker-compose -f docker-compose-test.yml up -d
+        
+        # Wait for containers to be ready
+        echo "Waiting for containers to initialize..."
+        sleep 10
+        
+        # Verify containers are running
+        docker ps
+        
+        # Check network connectivity
+        docker exec csync2-host1 ping -c 2 10.10.10.3
+        docker exec csync2-host2 ping -c 2 10.10.10.2
+
+    - name: Setup csync2 on both hosts
+      run: |
+        # Setup host1
+        docker exec csync2-host1 /scripts/setup-csync2.sh host1 host2 10.10.10.3
+        
+        # Copy key from host1 to host2
+        docker exec csync2-host1 cat /etc/csync2/csync2.key > /tmp/csync2.key
+        docker cp /tmp/csync2.key csync2-host2:/etc/csync2/csync2.key
+        
+        # Setup host2
+        docker exec csync2-host2 /scripts/setup-csync2.sh host2 host1 10.10.10.2
+        
+        # Verify csync2 is running
+        docker exec csync2-host1 systemctl status csync2.socket --no-pager || true
+        docker exec csync2-host2 systemctl status csync2.socket --no-pager || true
+        
+        # Test connectivity
+        docker exec csync2-host1 csync2 -T host2
+
+    - name: Run sync tests
+      run: |
+        # Run tests from host1
+        docker exec csync2-host1 /scripts/test-sync.sh
+        
+        # Give time for final sync
+        sleep 5
+        
+        # Verify on host2
+        docker exec csync2-host2 /scripts/verify-sync.sh
+
+    - name: Collect test results and logs
+      if: always()
+      run: |
+        echo "=== Host1 csync2 status ==="
+        docker exec csync2-host1 systemctl status csync2.socket --no-pager || true
+        echo
+        echo "=== Host2 csync2 status ==="
+        docker exec csync2-host2 systemctl status csync2.socket --no-pager || true
+        echo
+        echo "=== Host1 directory contents ==="
+        docker exec csync2-host1 ls -la /home/csync2-testdir/ || true
+        echo
+        echo "=== Host2 directory contents ==="
+        docker exec csync2-host2 ls -la /home/csync2-testdir/ || true
+        echo
+        echo "=== Host1 csync2 database ==="
+        docker exec csync2-host1 sqlite3 /var/lib/csync2/host1.db3 "SELECT COUNT(*) FROM file;" || true
+        echo
+        echo "=== Host2 csync2 database ==="
+        docker exec csync2-host2 sqlite3 /var/lib/csync2/host2.db3 "SELECT COUNT(*) FROM file;" || true
+
+    - name: Cleanup Docker Compose
+      if: always()
+      run: |
+        cd ${{ github.workspace }}
+        docker-compose -f docker-compose-test.yml down -v
+
+    - name: Upload test artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: csync2-test-results-${{ env.OS_VERSION }}
+        path: |
+          ${{ github.workspace }}/rpms/
+          ${{ github.workspace }}/docker-compose-test.yml
+          ${{ github.workspace }}/test-scripts/
+        retention-days: 7
