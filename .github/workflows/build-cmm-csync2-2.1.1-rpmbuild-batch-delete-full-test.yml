@@ -338,9 +338,11 @@ jobs:
         
         # Copy key from host1 to host2
         echo "Copying csync2 key to host2..."
+        docker exec csync2-host2 mkdir -p /etc/csync2
         docker exec csync2-host1 cat /etc/csync2/csync2.key > /tmp/csync2.key
         docker cp /tmp/csync2.key csync2-host2:/etc/csync2/csync2.key
         docker exec csync2-host2 chmod 600 /etc/csync2/csync2.key
+        rm -f /tmp/csync2.key
         
         # Complete setup on host2
         echo "Completing setup on host2..."
