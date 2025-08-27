@@ -170,4 +170,4 @@ SERVICE_EOF
   journalctl -u inotify_csync.service --no-pager | tail -25
 fi
 
-echo "Setup complete on ${HOSTNAME}"
+echo "Setup complete on ${HOSTNAME}"  
