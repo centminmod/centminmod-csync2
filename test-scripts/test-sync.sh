@@ -9,13 +9,13 @@ echo "Current hostname: $(hostname)"
 echo "Database files:"
 ls -la /var/lib/csync2/*.db* 2>/dev/null || echo "No database files found"
 echo "Configuration check:"
-csync2 -T || echo "Configuration test failed"
+/usr/sbin/csync2 -T || echo "Configuration test failed"
 
 # Test 1: Basic file sync
 echo "Test 1: Creating test file on host1..."
 echo "Hello from host1" > /home/csync2-testdir/test1.txt
 echo "Running sync with maximum verbosity..."
-csync2 -xvvvr /home/csync2-testdir || true
+/usr/sbin/csync2 -xvvvr /home/csync2-testdir || true
 sleep 2
 
 # Test 2: Multiple files
@@ -24,21 +24,21 @@ for i in {1..10}; do
   echo "File $i content" > /home/csync2-testdir/file$i.txt
 done
 echo "Running sync with maximum verbosity..."
-csync2 -xvvvr /home/csync2-testdir || true
+/usr/sbin/csync2 -xvvvr /home/csync2-testdir || true
 sleep 2
 
 # Test 3: File modification
 echo "Test 3: Modifying file..."
 echo "Modified content" >> /home/csync2-testdir/test1.txt
 echo "Running sync with maximum verbosity..."
-csync2 -xvvvr /home/csync2-testdir || true
+/usr/sbin/csync2 -xvvvr /home/csync2-testdir || true
 sleep 2
 
 # Test 4: File deletion
 echo "Test 4: Deleting file..."
 rm -f /home/csync2-testdir/file5.txt
 echo "Running sync with maximum verbosity..."
-csync2 -xvvvr /home/csync2-testdir || true
+/usr/sbin/csync2 -xvvvr /home/csync2-testdir || true
 sleep 2
 
 # Test 5: Batch delete limit test
@@ -47,12 +47,12 @@ for i in {1..100}; do
   echo "Batch test $i" > /home/csync2-testdir/batch$i.txt
 done
 echo "Running sync with maximum verbosity..."
-csync2 -xvvvbr /home/csync2-testdir || true
+/usr/sbin/csync2 -xvvvbr /home/csync2-testdir || true
 sleep 3
 echo "Deleting all batch files..."
 rm -f /home/csync2-testdir/batch*.txt
 echo "Running sync after batch delete..."
-csync2 -xvvvbr /home/csync2-testdir || true
+/usr/sbin/csync2 -xvvvbr /home/csync2-testdir || true
 sleep 3
 
 echo "=== Sync tests completed ==="
@@ -60,6 +60,6 @@ echo "=== Sync tests completed ==="
 # Final debug information
 echo "=== Post-sync debug information ==="
 echo "Database dirty entries:"
-csync2 -M || echo "No dirty entries or command failed"
+/usr/sbin/csync2 -M || echo "No dirty entries or command failed"
 echo "Database hint entries:"
-csync2 -H || echo "No hint entries or command failed"
+/usr/sbin/csync2 -H || echo "No hint entries or command failed"
