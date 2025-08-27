@@ -203,7 +203,8 @@ jobs:
               hostname \
               gnutls \
               libgcrypt \
-              openssl --quiet
+              openssl \
+              net-tools --quiet
           
           # Find and install csync2 RPM
           RPM_FILE=$(ls /rpms/csync2-2.1.1-*.x86_64.rpm 2>/dev/null | grep -v debuginfo | head -n1)
@@ -262,11 +263,20 @@ jobs:
           systemctl enable csync2.socket
         else
           echo "Systemd not available, starting csync2 daemon directly..."
-          # Start csync2 daemon in background
-          /usr/sbin/csync2 -D ${HOSTNAME}.db3 -N ${HOSTNAME} -ii &
+          # Start csync2 daemon in standalone mode (not inetd mode)
+          /usr/sbin/csync2 -D ${HOSTNAME}.db3 -N ${HOSTNAME} -i &
           echo "csync2 daemon started with PID $!"
           # Save PID for later
           echo $! > /var/run/csync2.pid
+          
+          # Verify daemon is listening
+          sleep 2
+          if netstat -tln | grep -q 30865; then
+            echo "csync2 daemon is listening on port 30865"
+          else
+            echo "Warning: csync2 daemon may not be listening properly"
+            ps aux | grep csync2
+          fi
         fi
         
         echo "Setup complete on ${HOSTNAME}"
@@ -518,7 +528,7 @@ jobs:
           # Install all csync2 dependencies
           dnf install -y sqlite sqlite-devel librsync librsync-devel \
                         inotify-tools hostname iputils iproute \
-                        gnutls libgcrypt openssl --quiet
+                        gnutls libgcrypt openssl net-tools --quiet
           
           # Install csync2 RPM
           RPM_FILE=\$(ls /rpms/csync2-2.1.1-*.x86_64.rpm 2>/dev/null | grep -v debuginfo | head -n1)
