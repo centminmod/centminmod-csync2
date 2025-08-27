@@ -108,19 +108,21 @@ jobs:
             command: /usr/sbin/init
             environment:
               - container=docker
-              - SYSTEMD_OFFLINE=0
+              # Remove SYSTEMD_OFFLINE or set to 1 for container mode
             tmpfs:
-              - /run
-              - /run/lock
-              - /tmp
+              - /run:noexec,nosuid,size=100m
+              - /run/lock:noexec,nosuid,size=100m
+              - /tmp:noexec,nosuid,size=100m
             stop_signal: SIGRTMIN+3
             cap_add:
               - SYS_ADMIN
               - SYS_NICE
               - SYS_RESOURCE
+              - NET_ADMIN
             security_opt:
               - seccomp:unconfined
               - apparmor:unconfined
+            restart: unless-stopped
             
           host2:
             image: ${{ matrix.os }}
@@ -138,21 +140,22 @@ jobs:
             command: /usr/sbin/init
             environment:
               - container=docker
-              - SYSTEMD_OFFLINE=0
+              # Remove SYSTEMD_OFFLINE or set to 1 for container mode
             tmpfs:
-              - /run
-              - /run/lock
-              - /tmp
+              - /run:noexec,nosuid,size=100m
+              - /run/lock:noexec,nosuid,size=100m
+              - /tmp:noexec,nosuid,size=100m
             stop_signal: SIGRTMIN+3
             cap_add:
               - SYS_ADMIN
               - SYS_NICE
               - SYS_RESOURCE
+              - NET_ADMIN
             security_opt:
               - seccomp:unconfined
               - apparmor:unconfined
-            depends_on:
-              - host1
+            restart: unless-stopped
+            # Remove depends_on as it's not necessary and can cause issues
         
         volumes:
           shared-csync2-testdir:
@@ -196,7 +199,7 @@ jobs:
         
         # If containers failed with systemd, restart without systemd
         if [ "$CONTAINERS_RUNNING" = "false" ]; then
-          echo "=== Containers failed to start with systemd, trying alternative approach ==="
+          echo "=== Containers failed to start with systemd, trying direct systemd approach ==="
           
           # Stop and remove failed containers
           docker-compose -f docker-compose-test.yml down || true
@@ -208,33 +211,92 @@ jobs:
           mkdir -p ${{ github.workspace }}/shared-testdir
           mkdir -p ${{ github.workspace }}/shared-testdir2
           
-          # Start containers with sleep instead of systemd
-          echo "Starting containers without systemd..."
+          # Start containers with proper systemd configuration
+          echo "Starting containers with systemd support..."
           docker run -d --name csync2-host1 \
             --hostname host1 \
             --network csync2-test-net \
             --ip 10.10.10.2 \
+            --privileged \
+            --cap-add=SYS_ADMIN \
+            --cap-add=SYS_NICE \
+            --cap-add=SYS_RESOURCE \
+            --security-opt seccomp=unconfined \
+            --security-opt apparmor=unconfined \
+            --stop-signal SIGRTMIN+3 \
+            --tmpfs /run \
+            --tmpfs /run/lock \
+            --tmpfs /tmp \
+            -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
             -v ${{ github.workspace }}/rpms:/rpms:ro \
             -v ${{ github.workspace }}/test-scripts:/scripts:ro \
             -v ${{ github.workspace }}/shared-testdir:/home/csync2-testdir \
+            -e container=docker \
+            -e SYSTEMD_OFFLINE=0 \
             ${{ matrix.os }} \
-            sleep infinity
+            /usr/sbin/init
             
           docker run -d --name csync2-host2 \
             --hostname host2 \
             --network csync2-test-net \
             --ip 10.10.10.3 \
+            --privileged \
+            --cap-add=SYS_ADMIN \
+            --cap-add=SYS_NICE \
+            --cap-add=SYS_RESOURCE \
+            --security-opt seccomp=unconfined \
+            --security-opt apparmor=unconfined \
+            --stop-signal SIGRTMIN+3 \
+            --tmpfs /run \
+            --tmpfs /run/lock \
+            --tmpfs /tmp \
+            -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
             -v ${{ github.workspace }}/rpms:/rpms:ro \
             -v ${{ github.workspace }}/test-scripts:/scripts:ro \
             -v ${{ github.workspace }}/shared-testdir2:/home/csync2-testdir \
+            -e container=docker \
+            -e SYSTEMD_OFFLINE=0 \
             ${{ matrix.os }} \
-            sleep infinity
+            /usr/sbin/init
           
-          echo "=== Containers restarted without systemd ==="
+          echo "=== Containers restarted with systemd support ==="
           docker ps -a
           
-          # Set flag for non-systemd mode
-          echo "SYSTEMD_MODE=false" >> $GITHUB_ENV
+          # Wait for systemd to initialize in fallback containers
+          echo "Waiting for systemd to initialize in fallback containers..."
+          
+          # Wait for host1 systemd
+          for i in {1..45}; do
+            if docker exec csync2-host1 systemctl is-system-running 2>/dev/null | grep -qE "running|degraded"; then
+              echo "host1 systemd is ready"
+              break
+            fi
+            echo "Waiting for host1 systemd... ($i/45)"
+            sleep 2
+          done
+          
+          # Wait for host2 systemd
+          for i in {1..45}; do
+            if docker exec csync2-host2 systemctl is-system-running 2>/dev/null | grep -qE "running|degraded"; then
+              echo "host2 systemd is ready"
+              break
+            fi
+            echo "Waiting for host2 systemd... ($i/45)"
+            sleep 2
+          done
+          
+          # Verify systemd is working
+          echo "=== Verifying systemd functionality ==="
+          echo "Host1 systemd status:"
+          docker exec csync2-host1 systemctl --version || echo "systemctl not working on host1"
+          docker exec csync2-host1 systemctl is-system-running || echo "systemd not running on host1"
+          
+          echo "Host2 systemd status:"
+          docker exec csync2-host2 systemctl --version || echo "systemctl not working on host2"
+          docker exec csync2-host2 systemctl is-system-running || echo "systemd not running on host2"
+          
+          # Set flag for systemd mode
+          echo "SYSTEMD_MODE=true" >> $GITHUB_ENV
         else
           echo "Containers are running with systemd"
           echo "SYSTEMD_MODE=true" >> $GITHUB_ENV
