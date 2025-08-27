@@ -127,22 +127,46 @@ echo ""
 mkdir -p /home/csync2-inotify/tmp
 chmod 755 /home/csync2-inotify
 
-# Kill any existing processes (with proper error handling)
+# Kill any existing processes (with completely safe error handling)
 echo "Cleaning up any existing csync2 processes..."
-if pgrep -f csync2 > /dev/null 2>&1; then
-  echo "Found existing csync2 processes, terminating..."
-  pkill -f csync2 || true
-  sleep 2
-  # Force kill if still running
-  if pgrep -f csync2 > /dev/null 2>&1; then
-    echo "Force killing remaining csync2 processes..."
-    pkill -9 -f csync2 || true
-    sleep 1
+{
+  # Check for processes first
+  EXISTING_PROCESSES=$(pgrep -f csync2 2>/dev/null | wc -l)
+  if [ "$EXISTING_PROCESSES" -gt 0 ]; then
+    echo "Found $EXISTING_PROCESSES existing csync2 processes, terminating..."
+    
+    # Get process IDs
+    PIDS=$(pgrep -f csync2 2>/dev/null || echo "")
+    if [ -n "$PIDS" ]; then
+      echo "Terminating PIDs: $PIDS"
+      for pid in $PIDS; do
+        if kill -0 "$pid" 2>/dev/null; then
+          kill "$pid" 2>/dev/null || echo "Could not terminate PID $pid"
+        fi
+      done
+      
+      # Wait a moment
+      sleep 2
+      
+      # Check if any are still running and force kill
+      REMAINING_PIDS=$(pgrep -f csync2 2>/dev/null || echo "")
+      if [ -n "$REMAINING_PIDS" ]; then
+        echo "Force killing remaining PIDs: $REMAINING_PIDS"
+        for pid in $REMAINING_PIDS; do
+          if kill -0 "$pid" 2>/dev/null; then
+            kill -9 "$pid" 2>/dev/null || echo "Could not force kill PID $pid"
+          fi
+        done
+        sleep 1
+      fi
+    fi
+    echo "Process cleanup completed"
+  else
+    echo "No existing csync2 processes found"
   fi
-  echo "Process cleanup completed"
-else
-  echo "No existing csync2 processes found"
-fi
+} 2>/dev/null || {
+  echo "Process cleanup had some issues, but continuing..."
+}
 
 echo "Configuration file contents:"
 cat /etc/csync2/csync2.cfg
