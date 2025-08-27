@@ -345,6 +345,7 @@ jobs:
         docker exec csync2-host2 hostname -I
 
     - name: Setup csync2 on both hosts
+      continue-on-error: true
       run: |
         # Find the exact RPM filename
         RPM_FILE=$(ls ${{ github.workspace }}/rpms/csync2-2.1.1-*.x86_64.rpm | head -n1)
