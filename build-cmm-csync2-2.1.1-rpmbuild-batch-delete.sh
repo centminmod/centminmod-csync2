@@ -44,10 +44,10 @@ fi
 # Enable repositories: CRB and EPEL
 dnf clean all
 dnf install -y epel-release
-dnf config-manager --set-enabled ${CRB_REPO}
+dnf config-manager --set-enabled "${CRB_REPO}"
 
 # Enable PostgreSQL module and install postgresql-server-devel
-dnf module enable postgresql:${POSTGRESQL_VERSION} -y &&
+dnf module enable "postgresql:${POSTGRESQL_VERSION}" -y &&
 dnf install -y postgresql-server-devel
 
 # Install dependencies
@@ -95,6 +95,9 @@ tar -xzf "csync2-${CSYNC2_VER}-orig.tar.gz"
 
 # Rename the extracted directory to match the spec file's expectation (cdversion)
 mv csync2-2.1-2025-batch-delete-limit csync2-2.1
+
+# Update version in configure.ac to match the RPM version
+sed -i "s/AC_INIT(csync2, 2.1-0rc1,/AC_INIT(csync2, ${CSYNC2_VER},/" csync2-2.1/configure.ac
 
 # Repack the tarball with the correct directory name for spec file
 tar -czf "csync2-${CSYNC2_VER}.tar.gz" "csync2-2.1"
