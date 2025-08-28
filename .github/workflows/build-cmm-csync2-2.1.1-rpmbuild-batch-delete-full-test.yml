@@ -406,8 +406,25 @@ jobs:
           exit 1
         fi
         
+        # Extract and copy SSL certificates
+        echo "Extracting SSL certificates from host1..."
+        docker exec csync2-host1 cat /etc/csync2/csync2_ssl_cert.pem > /tmp/csync2_ssl_cert.pem
+        docker exec csync2-host1 cat /etc/csync2/csync2_ssl_key.pem > /tmp/csync2_ssl_key.pem
+        
+        echo "✓ SSL cert extracted ($(wc -c < /tmp/csync2_ssl_cert.pem) bytes)"
+        echo "✓ SSL key extracted ($(wc -c < /tmp/csync2_ssl_key.pem) bytes)"
+        
+        echo "Copying SSL certificates to host2..."
+        docker exec -i csync2-host2 bash -c 'cat > /etc/csync2/csync2_ssl_cert.pem' < /tmp/csync2_ssl_cert.pem
+        docker exec -i csync2-host2 bash -c 'cat > /etc/csync2/csync2_ssl_key.pem' < /tmp/csync2_ssl_key.pem
+        
+        # Set correct permissions
+        docker exec csync2-host2 chmod 644 /etc/csync2/csync2_ssl_cert.pem
+        docker exec csync2-host2 chmod 600 /etc/csync2/csync2_ssl_key.pem
+        echo "✓ SSL certificates copied and permissions set"
+        
         # Clean up
-        rm -f /tmp/csync2.key
+        rm -f /tmp/csync2.key /tmp/csync2_ssl_cert.pem /tmp/csync2_ssl_key.pem
 
     - name: Complete csync2 setup on host2
       run: |
