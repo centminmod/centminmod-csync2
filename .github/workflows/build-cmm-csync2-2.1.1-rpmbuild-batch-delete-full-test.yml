@@ -427,16 +427,20 @@ jobs:
           docker exec csync2-host1 ps aux | grep csync2 | grep -v grep || echo "No csync2 process found on host1"
           echo "Host1 listening ports:"
           docker exec csync2-host1 netstat -tln | grep 30865 || echo "Port 30865 not listening on host1"
-          echo "Host1 daemon logs (last 20 lines):"
-          docker exec csync2-host1 cat /tmp/csync2_daemon.log 2>/dev/null | tail -20 || echo "No daemon logs on host1"
+          echo "Host1 daemon logs (full):"
+          docker exec csync2-host1 cat /tmp/csync2_daemon.log 2>/dev/null || echo "No daemon logs on host1"
+          echo "Host1 daemon PID check:"
+          docker exec csync2-host1 bash -c 'if [ -f /tmp/csync2_daemon.pid ]; then PID=$(cat /tmp/csync2_daemon.pid); if kill -0 $PID 2>/dev/null; then echo "Daemon PID $PID is running"; else echo "Daemon PID $PID is NOT running"; fi; fi'
           
           echo "=== Host2 debug information ==="
           echo "Host2 csync2 process:"
           docker exec csync2-host2 ps aux | grep csync2 | grep -v grep || echo "No csync2 process found on host2"
           echo "Host2 listening ports:"
           docker exec csync2-host2 netstat -tln | grep 30865 || echo "Port 30865 not listening on host2"
-          echo "Host2 daemon logs (last 20 lines):"
-          docker exec csync2-host2 cat /tmp/csync2_daemon.log 2>/dev/null | tail -20 || echo "No daemon logs on host2"
+          echo "Host2 daemon logs (full):"
+          docker exec csync2-host2 cat /tmp/csync2_daemon.log 2>/dev/null || echo "No daemon logs on host2"
+          echo "Host2 daemon PID check:"
+          docker exec csync2-host2 bash -c 'if [ -f /tmp/csync2_daemon.pid ]; then PID=$(cat /tmp/csync2_daemon.pid); if kill -0 $PID 2>/dev/null; then echo "Daemon PID $PID is running"; else echo "Daemon PID $PID is NOT running"; fi; fi'
         fi
         
         # Test network connectivity
@@ -452,6 +456,15 @@ jobs:
         # Test csync2 connectivity
         echo "=== Testing csync2 connectivity ==="
         docker exec csync2-host1 csync2 -T host2 || echo "Note: Initial connection test may fail until first sync"
+        
+        # Manual CONFIG test
+        echo "=== Testing CONFIG command manually ==="
+        echo "Sending CONFIG to host2 from host1:"
+        docker exec csync2-host1 bash -c 'echo -e "CONFIG \n" | nc -w 2 host2 30865' || echo "CONFIG test failed"
+        echo "Checking daemon status after CONFIG test:"
+        docker exec csync2-host2 ps aux | grep csync2 | grep -v grep || echo "No csync2 process after CONFIG"
+        echo "Host2 daemon log after CONFIG:"
+        docker exec csync2-host2 cat /tmp/csync2_daemon.log 2>/dev/null | tail -30 || echo "No log"
 
     - name: Run sync tests
       run: |
@@ -477,11 +490,11 @@ jobs:
           docker exec csync2-host2 netstat -tlnp | grep 30865 || echo "Port 30865 not listening on host2"
           
           echo "=== csync2 daemon logs ==="
-          echo "Host1 csync2 daemon:"
-          docker exec csync2-host1 cat /tmp/csync2_daemon.log 2>/dev/null | tail -50 || echo "No daemon logs on host1"
+          echo "Host1 csync2 daemon (full log):"
+          docker exec csync2-host1 cat /tmp/csync2_daemon.log 2>/dev/null || echo "No daemon logs on host1"
           
-          echo "Host2 csync2 daemon:"
-          docker exec csync2-host2 cat /tmp/csync2_daemon.log 2>/dev/null | tail -50 || echo "No daemon logs on host2"
+          echo "Host2 csync2 daemon (full log):"
+          docker exec csync2-host2 cat /tmp/csync2_daemon.log 2>/dev/null || echo "No daemon logs on host2"
           
           echo "=== csync server logs ==="
           echo "Host1 csync server log:"
@@ -500,13 +513,13 @@ jobs:
           echo "=== Full daemon status ==="
           echo "Host1 daemon status:"
           docker exec csync2-host1 ps aux | grep csync2 | grep -v grep || echo "No csync2 processes on host1"
-          echo "Host1 daemon log (last 20 lines):"
-          docker exec csync2-host1 cat /tmp/csync2_daemon.log 2>/dev/null | tail -20 || echo "No daemon log on host1"
+          echo "Host1 daemon log (full):"
+          docker exec csync2-host1 cat /tmp/csync2_daemon.log 2>/dev/null || echo "No daemon log on host1"
           
           echo "Host2 daemon status:"
           docker exec csync2-host2 ps aux | grep csync2 | grep -v grep || echo "No csync2 processes on host2"
-          echo "Host2 daemon log (last 20 lines):"
-          docker exec csync2-host2 cat /tmp/csync2_daemon.log 2>/dev/null | tail -20 || echo "No daemon log on host2"
+          echo "Host2 daemon log (full):"
+          docker exec csync2-host2 cat /tmp/csync2_daemon.log 2>/dev/null || echo "No daemon log on host2"
           
           echo "=== Configuration files ==="
           echo "Host1 config:"
