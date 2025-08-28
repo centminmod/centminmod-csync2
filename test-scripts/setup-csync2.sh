@@ -64,14 +64,18 @@ if [ "$HOSTNAME" = "host1" ] && [ "$SKIP_INSTALL" != "skip_install" ]; then
   chmod 600 /etc/csync2/csync2.key
 fi
 
-# Generate SSL certificate and key for encrypted connections
-echo "Generating SSL certificate for ${HOSTNAME}..."
-openssl req -new -newkey rsa:2048 -days 3650 -nodes -x509 \
-  -subj "/C=US/ST=State/L=City/O=CSyncTest/CN=${HOSTNAME}" \
-  -keyout /etc/csync2/csync2_ssl_key.pem \
-  -out /etc/csync2/csync2_ssl_cert.pem
-chmod 600 /etc/csync2/csync2_ssl_key.pem
-chmod 644 /etc/csync2/csync2_ssl_cert.pem
+# Generate SSL certificate and key for encrypted connections (shared across all nodes)
+if [ "$HOSTNAME" = "host1" ] && [ "$SKIP_INSTALL" != "skip_install" ]; then
+  echo "Generating shared SSL certificate for cluster..."
+  openssl req -new -newkey rsa:2048 -days 3650 -nodes -x509 \
+    -subj "/C=US/ST=State/L=City/O=CSyncTest/CN=csync2-cluster" \
+    -keyout /etc/csync2/csync2_ssl_key.pem \
+    -out /etc/csync2/csync2_ssl_cert.pem
+  chmod 600 /etc/csync2/csync2_ssl_key.pem
+  chmod 644 /etc/csync2/csync2_ssl_cert.pem
+else
+  echo "SSL certificate will be copied from host1"
+fi
 
 # Create csync2 config
 cat > /etc/csync2/csync2.cfg <<'CFGEOF'
