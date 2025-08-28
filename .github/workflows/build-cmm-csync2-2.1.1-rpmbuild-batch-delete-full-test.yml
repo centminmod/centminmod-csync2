@@ -113,7 +113,6 @@ jobs:
             command: /usr/sbin/init
             environment:
               - container=docker
-              # Remove SYSTEMD_OFFLINE or set to 1 for container mode
             tmpfs:
               - /run:noexec,nosuid,size=100m
               - /run/lock:noexec,nosuid,size=100m
@@ -145,7 +144,6 @@ jobs:
             command: /usr/sbin/init
             environment:
               - container=docker
-              # Remove SYSTEMD_OFFLINE or set to 1 for container mode
             tmpfs:
               - /run:noexec,nosuid,size=100m
               - /run/lock:noexec,nosuid,size=100m
@@ -160,7 +158,6 @@ jobs:
               - seccomp:unconfined
               - apparmor:unconfined
             restart: unless-stopped
-            # Remove depends_on as it's not necessary and can cause issues
         
         volumes:
           shared-csync2-testdir:
@@ -291,8 +288,7 @@ jobs:
         docker exec csync2-host1 hostname -I
         docker exec csync2-host2 hostname -I
 
-    - name: Setup csync2 on both hosts
-      continue-on-error: true
+    - name: Setup csync2 on host1
       run: |
         # Find the exact RPM filename
         RPM_FILE=$(ls ${{ github.workspace }}/rpms/csync2-2.1.1-*.x86_64.rpm | head -n1)
@@ -301,11 +297,12 @@ jobs:
         # Setup host1 first (this generates the key)
         echo "Setting up host1..."
         docker exec csync2-host1 bash /scripts/setup-csync2.sh host1 host2 10.10.10.3
-        
-        # Pre-setup host2 to create directories and install csync2
-        echo "Pre-setup host2 (installing dependencies and csync2)..."
+
+    - name: Install dependencies on host2
+      run: |
+        # Install dependencies on host2 first
+        echo "Installing dependencies on host2..."
         docker exec csync2-host2 bash -c "
-          # Install dependencies
           if grep -q 'release 8' /etc/redhat-release; then
             CRB_REPO='powertools'
           else
@@ -314,14 +311,36 @@ jobs:
           dnf clean all
           dnf install -y epel-release --quiet
           dnf config-manager --set-enabled \"\${CRB_REPO}\"
-          
-          # Install all csync2 dependencies and debugging tools
           dnf install -y sqlite sqlite-devel librsync librsync-devel \
                         inotify-tools hostname iputils iproute \
                         gnutls libgcrypt openssl net-tools nmap-ncat \
                         strace socat --quiet
-          
-          # Install csync2 RPM
+        "
+
+    - name: Create directories on host2
+      run: |
+        # Create directories first
+        echo "Creating directories on host2..."
+        docker exec csync2-host2 mkdir -p /etc/csync2 /home/csync2-testdir /var/lib/csync2
+        docker exec csync2-host2 chmod 755 /etc/csync2 /home/csync2-testdir /var/lib/csync2
+        
+        # Verify directory creation
+        echo "Verifying directory creation..."
+        docker exec csync2-host2 test -d /etc/csync2 && echo "✓ /etc/csync2 exists" || {
+          echo "✗ /etc/csync2 creation failed"
+          docker exec csync2-host2 ls -la /etc/ | head -20
+          exit 1
+        }
+        docker exec csync2-host2 test -d /home/csync2-testdir && echo "✓ /home/csync2-testdir exists" || {
+          echo "✗ /home/csync2-testdir creation failed"
+          exit 1
+        }
+
+    - name: Install csync2 RPM on host2
+      run: |
+        # Install csync2 RPM
+        echo "Installing csync2 RPM on host2..."
+        docker exec csync2-host2 bash -c "
           RPM_FILE=\$(ls /rpms/csync2-2.1.1-*.x86_64.rpm 2>/dev/null | grep -v debuginfo | head -n1)
           if [ -z \"\$RPM_FILE\" ]; then
             echo 'Error: csync2 RPM not found'
@@ -331,23 +350,72 @@ jobs:
           echo \"Installing: \$RPM_FILE\"
           rpm -ivh \"\$RPM_FILE\" || rpm -Uvh \"\$RPM_FILE\"
           
-          # Ensure directory exists
-          mkdir -p /etc/csync2
-          mkdir -p /home/csync2-testdir
+          # Verify installation
+          rpm -qi csync2 || echo 'csync2 package query failed'
+          which csync2 || echo 'csync2 binary not in PATH'
         "
-        
-        # Copy key from host1 to host2
+
+    - name: Copy csync2 key to host2
+      run: |
+        # Copy key from host1 to host2 with comprehensive verification
         echo "Copying csync2 key to host2..."
-        docker exec csync2-host2 mkdir -p /etc/csync2
-        docker exec csync2-host1 cat /etc/csync2/csync2.key > /tmp/csync2.key
-        docker cp /tmp/csync2.key csync2-host2:/etc/csync2/csync2.key
-        docker exec csync2-host2 chmod 600 /etc/csync2/csync2.key
-        rm -f /tmp/csync2.key
         
+        # Verify host1 key exists
+        echo "Checking host1 key..."
+        if ! docker exec csync2-host1 test -f /etc/csync2/csync2.key; then
+          echo "Error: Key not found on host1"
+          docker exec csync2-host1 ls -la /etc/csync2/ || echo "Directory doesn't exist on host1"
+          exit 1
+        fi
+        echo "✓ Host1 key verified"
+        
+        # Verify host2 directory exists
+        echo "Verifying host2 directory..."
+        if ! docker exec csync2-host2 test -d /etc/csync2; then
+          echo "Error: /etc/csync2 doesn't exist on host2"
+          docker exec csync2-host2 ls -la /etc/ | head -10
+          exit 1
+        fi
+        echo "✓ Host2 directory confirmed"
+        
+        # Extract and copy key
+        echo "Extracting key from host1..."
+        docker exec csync2-host1 cat /etc/csync2/csync2.key > /tmp/csync2.key
+        
+        # Verify temp file
+        if [ ! -s /tmp/csync2.key ]; then
+          echo "Error: Failed to extract key from host1"
+          exit 1
+        fi
+        echo "✓ Key extracted ($(wc -c < /tmp/csync2.key) bytes)"
+        
+        # Copy to host2
+        echo "Copying key to host2..."
+        docker cp /tmp/csync2.key csync2-host2:/etc/csync2/csync2.key
+        
+        # Verify copy succeeded
+        if docker exec csync2-host2 test -f /etc/csync2/csync2.key; then
+          docker exec csync2-host2 chmod 600 /etc/csync2/csync2.key
+          docker exec csync2-host2 chown root:root /etc/csync2/csync2.key
+          echo "✓ Key copied and permissions set"
+        else
+          echo "Error: Key copy failed"
+          docker exec csync2-host2 ls -la /etc/csync2/ || echo "Directory not accessible"
+          exit 1
+        fi
+        
+        # Clean up
+        rm -f /tmp/csync2.key
+
+    - name: Complete csync2 setup on host2
+      run: |
         # Complete setup on host2
         echo "Completing setup on host2..."
         docker exec csync2-host2 bash /scripts/setup-csync2.sh host2 host1 10.10.10.2 skip_install
-        
+
+    - name: Verify csync2 setup
+      continue-on-error: true
+      run: |
         # Verify csync2 is running with comprehensive debug
         echo "=== Checking csync2 status on both hosts ==="
         if [ "$SYSTEMD_MODE" = "true" ]; then
