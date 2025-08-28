@@ -80,12 +80,8 @@ group testgroup {
     host host2;
     
     key /etc/csync2/csync2.key;
-    
     include /home/csync2-testdir;
-    
     auto younger;
-    
-    # batch_delete_limit 20000;
 }
 CFGEOF
 

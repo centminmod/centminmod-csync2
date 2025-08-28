@@ -101,6 +101,7 @@ jobs:
             image: ${{ matrix.os }}
             hostname: host1
             container_name: csync2-host1
+            runtime: sysbox-runc
             privileged: true
             networks:
               csync2-test:
@@ -132,6 +133,7 @@ jobs:
             image: ${{ matrix.os }}
             hostname: host2
             container_name: csync2-host2
+            runtime: sysbox-runc
             privileged: true
             networks:
               csync2-test:
